@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Estoque — Grupo Carlos Vaz</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%233B82F6'/><stop offset='100%25' style='stop-color:%2310B981'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='38' text-anchor='middle' fill='white' font-family='Arial' font-weight='900' font-size='24'>GCV</text><text x='50' y='68' text-anchor='middle' fill='rgba(255,255,255,0.8)' font-family='Arial' font-weight='700' font-size='13'>ESTOQUE</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy-deep: #080E1A;
+      --navy-dark: #0C1426;
+      --navy-mid: #111D35;
+      --accent-blue: #3B82F6;
+      --accent-cyan: #06B6D4;
+      --accent-green: #10B981;
+      --accent-emerald: #059669;
+      --accent-amber: #F59E0B;
+      --accent-red: #EF4444;
+      --accent-purple: #8B5CF6;
+      --glass-bg: rgba(17, 29, 53, 0.6);
+      --glass-border: rgba(16, 185, 129, 0.15);
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --shadow-glow: 0 0 40px rgba(16, 185, 129, 0.08);
+      --radius-xl: 24px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--navy-deep);min-height:100vh;min-height:100dvh;overflow-x:hidden;color:var(--text-primary)}
+
+    .bg-effects{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .bg-effects .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.12;animation:float 20s ease-in-out infinite}
+    .bg-effects .orb:nth-child(1){width:500px;height:500px;background:var(--accent-green);top:-10%;left:-10%}
+    .bg-effects .orb:nth-child(2){width:400px;height:400px;background:var(--accent-cyan);bottom:-10%;right:-10%;animation-delay:-7s}
+    .bg-effects .orb:nth-child(3){width:300px;height:300px;background:var(--accent-purple);top:40%;left:50%;animation-delay:-14s}
+    @keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.05)}66%{transform:translate(-20px,20px) scale(.95)}}
+    .grid-overlay{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(16,185,129,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.03) 1px,transparent 1px);background-size:60px 60px}
+
+    .app-wrapper{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;padding:16px 16px 32px}
+
+    /* TOP BAR */
+    .top-bar{width:100%;max-width:440px;display:flex;align-items:center;justify-content:space-between;padding:8px 0;margin-bottom:12px}
+    .logo-area{display:flex;align-items:center;gap:10px}
+    .logo-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent-green),var(--accent-cyan));display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(16,185,129,.3);line-height:1}
+    .logo-icon .li-t{font-size:13px;font-weight:900;color:#fff;letter-spacing:.5px}
+    .logo-icon .li-b{width:14px;height:2px;background:rgba(255,255,255,.5);border-radius:1px;margin-top:1px}
+    .logo-text{font-size:14px;font-weight:700;letter-spacing:1.5px;color:var(--text-primary)}
+    .logo-sub{font-size:9px;font-weight:500;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase}
+    .status-pill{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);font-size:10px;font-weight:600;color:var(--accent-green);text-transform:uppercase;letter-spacing:1px}
+    .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--accent-green);animation:pulse 2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+
+    /* DATE/TIME */
+    .datetime-bar{width:100%;max-width:440px;text-align:center;margin-bottom:14px}
+    .dt-time{font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:700;background:linear-gradient(135deg,var(--text-primary),var(--accent-green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2px;line-height:1}
+    .dt-date{font-size:12px;color:var(--text-muted);font-weight:500;margin-top:4px}
+
+    /* CARDS */
+    .card{width:100%;max-width:440px;background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:var(--radius-xl);padding:22px;margin-bottom:14px;box-shadow:var(--shadow-glow)}
+    .card-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text-primary);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(16,185,129,.1)}
+    .card-title .ct-icon{font-size:18px}
+
+    /* FIELDS */
+    .field{margin-bottom:14px}
+    .field:last-child{margin-bottom:0}
+    .field-label{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px}
+    .field-label .fl-icon{font-size:12px}
+    .field-row{display:flex;gap:10px}
+    .field-row .field{flex:1}
+
+    select,input[type="text"],input[type="number"],input[type="date"],textarea{
+      width:100%;padding:13px 14px;background:rgba(12,20,38,.8);border:1px solid rgba(16,185,129,.15);border-radius:var(--radius-md);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;transition:all .3s ease;appearance:none;-webkit-appearance:none}
+    select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent-green);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
+    select option{background:var(--navy-dark);color:var(--text-primary)}
+    textarea{resize:none;height:70px}
+    .select-wrap{position:relative}
+    .select-wrap::after{content:'▾';position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none}
+
+    input[type="date"]{color-scheme:dark}
+    input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.7)}
+
+    /* CAMERA */
+    .camera-viewport{position:relative;width:100%;aspect-ratio:4/3;background:var(--navy-dark);border-radius:var(--radius-lg);overflow:hidden;border:2px solid rgba(16,185,129,.1)}
+    .camera-viewport video,.camera-viewport img{width:100%;height:100%;object-fit:cover}
+    .camera-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:10;transition:opacity .1s ease}
+    .camera-flash.active{opacity:.8;transition:opacity .05s ease}
+    .cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .cam-overlay .cam-label{position:absolute;bottom:10px;font-size:9px;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px}
+    .camera-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
+    .btn-shutter{width:56px;height:56px;border-radius:50%;background:transparent;border:3px solid var(--accent-green);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s ease}
+    .btn-shutter::after{content:'';width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent-green),var(--accent-cyan));transition:all .15s ease}
+    .btn-shutter:active::after{transform:scale(.85)}
+    .btn-retake{padding:10px 18px;border-radius:25px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:var(--accent-green);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:none}
+    .photo-badge{display:none;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);font-size:11px;font-weight:600;color:var(--accent-green)}
+    .cam-optional{text-align:center;font-size:10px;color:var(--text-muted);margin-top:6px}
+
+    /* VALIDADE PREVIEW */
+    .validade-preview{width:100%;max-width:440px;display:none;padding:14px 18px;border-radius:var(--radius-lg);margin-bottom:14px;font-size:13px;font-weight:600;text-align:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+    .validade-preview.vencido{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--accent-red)}
+    .validade-preview.critico{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#F87171}
+    .validade-preview.atencao{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:var(--accent-amber)}
+    .validade-preview.monitorar{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);color:#FBBF24}
+    .validade-preview.ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:var(--accent-green)}
+
+    /* REGISTER BTN */
+    .btn-register-wrapper{width:100%;max-width:440px;margin-bottom:16px}
+    .btn-register{width:100%;padding:18px;background:linear-gradient(135deg,var(--accent-green),var(--accent-cyan));border:none;border-radius:var(--radius-lg);color:#fff;font-family:'Inter',sans-serif;font-size:16px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:all .4s cubic-bezier(.4,0,.2,1);box-shadow:0 4px 20px rgba(16,185,129,.25)}
+    .btn-register:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px rgba(16,185,129,.35)}
+    .btn-register:disabled{background:rgba(100,116,139,.2);color:var(--text-muted);cursor:not-allowed;box-shadow:none}
+    .btn-register::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transition:left .6s ease}
+    .btn-register:hover:not(:disabled)::before{left:100%}
+
+    /* TOAST */
+    .toast-container{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:1000;width:90%;max-width:420px}
+    .toast{display:none;padding:16px 20px;border-radius:var(--radius-lg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);font-size:13px;font-weight:600;text-align:center;animation:slideDown .4s cubic-bezier(.4,0,.2,1);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+    @keyframes slideDown{from{transform:translateY(-30px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .toast.success{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:var(--accent-green)}
+    .toast.error{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--accent-red)}
+    .toast.loading{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:var(--accent-amber)}
+
+    /* LOADING */
+    .loading-overlay{position:fixed;inset:0;z-index:2000;background:var(--navy-deep);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s ease}
+    .loading-overlay.hide{opacity:0;pointer-events:none}
+    .loading-spinner{width:48px;height:48px;border-radius:50%;border:3px solid rgba(16,185,129,.1);border-top-color:var(--accent-green);animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .load-brand{margin-bottom:20px;display:flex;flex-direction:column;align-items:center}
+    .load-brand .brand-icon{width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,var(--accent-green),var(--accent-cyan));display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(16,185,129,.3);margin-bottom:16px}
+    .brand-icon .b-t{font-size:20px;font-weight:900;color:#fff}
+    .brand-icon .b-l{width:22px;height:2px;background:rgba(255,255,255,.5);border-radius:1px;margin-top:2px}
+    .load-text{margin-top:16px;font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase}
+
+    /* SUCCESS */
+    .success-overlay{position:fixed;inset:0;z-index:3000;background:rgba(8,14,26,.92);backdrop-filter:blur(10px);display:none;flex-direction:column;align-items:center;justify-content:center}
+    .success-overlay.show{display:flex;animation:fadeIn .3s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .success-check{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent-green),#34D399);display:flex;align-items:center;justify-content:center;font-size:40px;animation:popIn .5s cubic-bezier(.68,-.55,.27,1.55);box-shadow:0 0 40px rgba(16,185,129,.3)}
+    @keyframes popIn{0%{transform:scale(0)}100%{transform:scale(1)}}
+    .success-overlay .s-title{font-size:22px;font-weight:800;color:var(--text-primary);margin-top:20px}
+    .success-overlay .s-detail{font-size:13px;color:var(--text-secondary);margin-top:8px;text-align:center;line-height:1.5;padding:0 20px}
+
+    /* COUNTER */
+    .counter-strip{width:100%;max-width:440px;display:flex;gap:8px;margin-bottom:14px}
+    .counter-item{flex:1;padding:10px 8px;background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:var(--radius-md);text-align:center}
+    .counter-item .ci-num{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--text-primary)}
+    .counter-item .ci-label{font-size:8px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+    .counter-item.green .ci-num{color:var(--accent-green)}
+    .counter-item.amber .ci-num{color:var(--accent-amber)}
+    .counter-item.red .ci-num{color:var(--accent-red)}
+
+    .app-footer{width:100%;max-width:440px;text-align:center;padding:8px 0}
+    .app-footer p{font-size:9px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;font-weight:500}
+    .app-footer .version{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(100,116,139,.4);margin-top:4px}
+
+    @media(max-width:380px){.dt-time{font-size:28px} .card{padding:16px}}
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="load-brand"><div class="brand-icon"><span class="b-t">GCV</span><span class="b-l"></span></div></div>
+  <div class="loading-spinner"></div>
+  <div class="load-text">Controle de Estoque</div>
+</div>
+
+<div class="success-overlay" id="successOverlay">
+  <div class="success-check">✓</div>
+  <div class="s-title">Produto Cadastrado!</div>
+  <div class="s-detail" id="successDetail"></div>
+</div>
+
+<div class="toast-container"><div class="toast" id="toast"></div></div>
+
+<div class="bg-effects"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+<div class="grid-overlay"></div>
+
+<div class="app-wrapper">
+
+  <div class="top-bar">
+    <div class="logo-area">
+      <div class="logo-icon"><span class="li-t">GCV</span><span class="li-b"></span></div>
+      <div><div class="logo-text">GRUPO CARLOS VAZ</div><div class="logo-sub">Controle de Estoque</div></div>
+    </div>
+    <div class="status-pill"><div class="pulse-dot"></div><span>Online</span></div>
+  </div>
+
+  <div class="datetime-bar">
+    <div class="dt-time" id="dtTime">--:--</div>
+    <div class="dt-date" id="dtDate">Carregando...</div>
+  </div>
+
+  <div class="counter-strip">
+    <div class="counter-item green"><div class="ci-num" id="cntHoje">0</div><div class="ci-label">Cadastros Hoje</div></div>
+    <div class="counter-item amber"><div class="ci-num" id="cntSessao">0</div><div class="ci-label">Nesta Sessão</div></div>
+    <div class="counter-item red"><div class="ci-num" id="cntCritico">!</div><div class="ci-label">Fique Atento</div></div>
+  </div>
+
+  <!-- COLABORADOR (separado) -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">👤</span> Quem está cadastrando</div>
+    <div class="field">
+      <div class="field-label"><span class="fl-icon">🪪</span> Colaborador</div>
+      <div class="select-wrap">
+        <select id="colaborador">
+          <option value="">Selecione seu nome...</option>
+          <option value="LUCAS">LUCAS</option>
+          <option value="TASSIO">TASSIO</option>
+          <option value="AMARAL">AMARAL</option>
+          <option value="ALEX">ALEX</option>
+          <option value="ALEF">ALEF (Gestor)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUTO (setor aqui dentro) -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">📦</span> Dados do Produto</div>
+
+    <div class="field">
+      <div class="field-label"><span class="fl-icon">🏪</span> Corredor / Setor</div>
+      <div class="select-wrap">
+        <select id="setor">
+          <option value="">Selecione o corredor...</option>
+          <option value="Mercearia">🛒 Mercearia</option>
+          <option value="Bebidas">🥤 Bebidas</option>
+          <option value="Carnes & Frios">🥩 Carnes & Frios</option>
+          <option value="Laticínios">🧀 Laticínios</option>
+          <option value="Limpeza">🧹 Limpeza</option>
+          <option value="Higiene">🧴 Higiene</option>
+          <option value="Hortifrúti">🥬 Hortifrúti</option>
+          <option value="Padaria & Doces">🍞 Padaria & Doces</option>
+          <option value="Congelados">🧊 Congelados</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label"><span class="fl-icon">🏷️</span> Nome do Produto</div>
+      <input type="text" id="produto" placeholder="Ex: Arroz Tio João 5kg">
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <div class="field-label"><span class="fl-icon">🏭</span> Marca</div>
+        <input type="text" id="marca" placeholder="Ex: Tio João">
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-icon">🔢</span> Lote</div>
+        <input type="text" id="lote" placeholder="Opcional">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <div class="field-label"><span class="fl-icon">📊</span> Quantidade</div>
+        <input type="number" id="quantidade" placeholder="0" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-icon">📏</span> Unidade</div>
+        <div class="select-wrap">
+          <select id="unidade">
+            <option value="">...</option>
+            <option value="UN">UN</option>
+            <option value="KG">KG</option>
+            <option value="L">L</option>
+            <option value="CX">CX</option>
+            <option value="PCT">PCT</option>
+            <option value="FD">FD</option>
+            <option value="DZ">DZ</option>
+            <option value="G">G</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label"><span class="fl-icon">📅</span> Data de Validade</div>
+      <input type="date" id="validade">
+    </div>
+
+    <div class="field">
+      <div class="field-label"><span class="fl-icon">📝</span> Observações</div>
+      <textarea id="observacoes" placeholder="Opcional — promoção, avaria, etc."></textarea>
+    </div>
+  </div>
+
+  <!-- VALIDADE PREVIEW -->
+  <div class="validade-preview" id="validadePreview"></div>
+
+  <!-- CAMERA -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">📸</span> Foto do Produto</div>
+    <div class="camera-viewport">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas" style="display:none"></canvas>
+      <img id="preview" style="display:none">
+      <div class="camera-flash" id="cameraFlash"></div>
+      <div class="cam-overlay"><div class="cam-label">Aponte para o produto</div></div>
+    </div>
+    <div class="camera-controls">
+      <button class="btn-shutter" id="btnShutter" onclick="tirarFoto()"></button>
+      <button class="btn-retake" id="btnRetake" onclick="novaFoto()">↻ Nova foto</button>
+      <div class="photo-badge" id="photoBadge">✓ Foto capturada</div>
+    </div>
+    <div class="cam-optional">Opcional — mas recomendado para controle visual</div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="btn-register-wrapper">
+    <button class="btn-register" id="btnCadastrar" onclick="enviarCadastro()" disabled>Cadastrar Produto</button>
+  </div>
+
+  <div class="app-footer">
+    <p>Grupo Carlos Vaz — Controle de Estoque</p>
+    <div class="version">v1.1 Premium</div>
+  </div>
+
+</div>
+
+<script>
+var API_URL = 'https://script.google.com/macros/s/AKfycbyvw-6uBYct475K2nv5J-U2z39KHxbNOCqkVMaPl6MiFGnd3zTMiLPr5ivMfKNDZ55B/exec';
+var selfieBase64 = null, stream = null, cadastrosSessao = 0;
+
+// LOADING
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    document.getElementById('loadingOverlay').classList.add('hide');
+    setTimeout(function() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }, 600);
+  }, 1800);
+});
+
+// CLOCK
+var dias = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function tick() {
+  var n = new Date();
+  document.getElementById('dtTime').textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
+  document.getElementById('dtDate').textContent = dias[n.getDay()] + ', ' + n.getDate() + ' de ' + meses[n.getMonth()] + ' de ' + n.getFullYear();
+}
+setInterval(tick, 1000);
+tick();
+
+// CAMERA (rear for products)
+function iniciarCamera() {
+  navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 320}, height: {ideal: 240}}})
+  .then(function(s) {stream = s; document.getElementById('video').srcObject = s;})
+  .catch(function() {
+    navigator.mediaDevices.getUserMedia({video: {facingMode: 'user', width: {ideal: 320}, height: {ideal: 240}}})
+    .then(function(s) {stream = s; document.getElementById('video').srcObject = s;})
+    .catch(function(e) {console.log('Camera:', e.message);});
+  });
+}
+iniciarCamera();
+
+function tirarFoto() {
+  var v = document.getElementById('video');
+  var c = document.getElementById('canvas');
+  var p = document.getElementById('preview');
+  var f = document.getElementById('cameraFlash');
+  f.classList.add('active');
+  setTimeout(function() {f.classList.remove('active');}, 200);
+  c.width = v.videoWidth || 320;
+  c.height = v.videoHeight || 240;
+  c.getContext('2d').drawImage(v, 0, 0);
+  var url = c.toDataURL('image/jpeg', 0.5);
+  selfieBase64 = url.split(',')[1];
+  p.src = url;
+  v.style.display = 'none';
+  p.style.display = 'block';
+  document.getElementById('btnShutter').style.display = 'none';
+  document.getElementById('btnRetake').style.display = 'inline-block';
+  document.getElementById('photoBadge').style.display = 'flex';
+  document.querySelector('.cam-overlay').style.display = 'none';
+}
+
+function novaFoto() {
+  document.getElementById('video').style.display = 'block';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('btnShutter').style.display = 'flex';
+  document.getElementById('btnRetake').style.display = 'none';
+  document.getElementById('photoBadge').style.display = 'none';
+  document.querySelector('.cam-overlay').style.display = 'flex';
+  selfieBase64 = null;
+}
+
+// VALIDADE PREVIEW
+document.getElementById('validade').addEventListener('change', function() {
+  var val = this.value;
+  if (!val) {document.getElementById('validadePreview').style.display = 'none'; return;}
+  var partes = val.split('-');
+  var dataVal = new Date(partes[0], partes[1] - 1, partes[2]);
+  var hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  dataVal.setHours(0,0,0,0);
+  var diasRest = Math.floor((dataVal - hoje) / (1000 * 60 * 60 * 24));
+  var vp = document.getElementById('validadePreview');
+  vp.style.display = 'block';
+  vp.className = 'validade-preview';
+  if (diasRest < 0) {vp.classList.add('vencido'); vp.textContent = '🔴 PRODUTO JÁ VENCIDO! (' + Math.abs(diasRest) + ' dias atrás)';}
+  else if (diasRest <= 7) {vp.classList.add('critico'); vp.textContent = '🔴 CRÍTICO — Vence em ' + diasRest + ' dias!';}
+  else if (diasRest <= 15) {vp.classList.add('atencao'); vp.textContent = '🟠 ATENÇÃO — Vence em ' + diasRest + ' dias';}
+  else if (diasRest <= 30) {vp.classList.add('monitorar'); vp.textContent = '🟡 MONITORAR — Vence em ' + diasRest + ' dias';}
+  else {vp.classList.add('ok'); vp.textContent = '✅ OK — ' + diasRest + ' dias até o vencimento';}
+  verificarForm();
+});
+
+// VALIDATION
+function verificarForm() {
+  var ok = document.getElementById('colaborador').value
+    && document.getElementById('setor').value
+    && document.getElementById('produto').value
+    && document.getElementById('quantidade').value
+    && document.getElementById('unidade').value
+    && document.getElementById('validade').value;
+  document.getElementById('btnCadastrar').disabled = !ok;
+}
+
+['colaborador','setor','produto','quantidade','unidade','validade'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', verificarForm);
+  document.getElementById(id).addEventListener('input', verificarForm);
+});
+
+// TOAST
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(function() {t.style.display = 'none';}, 4000);
+}
+
+// SEND
+function enviarCadastro() {
+  var btn = document.getElementById('btnCadastrar');
+  btn.disabled = true;
+  btn.textContent = 'Cadastrando...';
+
+  var valRaw = document.getElementById('validade').value;
+  var vp = valRaw.split('-');
+  var validadeFormatada = vp[2] + '/' + vp[1] + '/' + vp[0];
+
+  var dados = {
+    colaborador: document.getElementById('colaborador').value,
+    setor: document.getElementById('setor').value,
+    produto: document.getElementById('produto').value,
+    marca: document.getElementById('marca').value,
+    quantidade: parseFloat(document.getElementById('quantidade').value),
+    unidade: document.getElementById('unidade').value,
+    validade: validadeFormatada,
+    lote: document.getElementById('lote').value,
+    observacoes: document.getElementById('observacoes').value,
+    foto: selfieBase64 || ''
+  };
+
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(dados)
+  }).catch(function() {});
+
+  // Instant feedback
+  cadastrosSessao++;
+  document.getElementById('cntSessao').textContent = cadastrosSessao;
+  document.getElementById('cntHoje').textContent = cadastrosSessao;
+
+  var diasRest = Math.floor((new Date(vp[0], vp[1] - 1, vp[2]) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+  var statusTxt = diasRest < 0 ? '🔴 VENCIDO' : diasRest <= 7 ? '🔴 CRÍTICO' : diasRest <= 15 ? '🟠 ATENÇÃO' : diasRest <= 30 ? '🟡 MONITORAR' : '✅ OK';
+
+  var overlay = document.getElementById('successOverlay');
+  document.getElementById('successDetail').innerHTML =
+    '<strong>' + dados.produto + '</strong><br>' +
+    dados.setor + ' — ' + dados.quantidade + ' ' + dados.unidade + '<br>' +
+    'Validade: ' + validadeFormatada + ' (' + statusTxt + ')<br>' +
+    '<span style="font-size:11px;color:var(--text-muted)">Registrado por ' + dados.colaborador + '</span>';
+  overlay.classList.add('show');
+
+  setTimeout(function() {
+    overlay.classList.remove('show');
+    // Limpar apenas campos do produto (manter colaborador selecionado)
+    document.getElementById('produto').value = '';
+    document.getElementById('marca').value = '';
+    document.getElementById('lote').value = '';
+    document.getElementById('quantidade').value = '';
+    document.getElementById('observacoes').value = '';
+    document.getElementById('validade').value = '';
+    document.getElementById('validadePreview').style.display = 'none';
+    novaFoto();
+    btn.textContent = 'Cadastrar Produto';
+    btn.disabled = true;
+  }, 3000);
+}
+</script>
+</body>
+</html>
