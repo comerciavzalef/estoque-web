@@ -9,11 +9,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-/* ═══════════════════════════════════════════
-   DESIGN SYSTEM — GRUPO CARLOS VAZ
-   Premium Dark Glass-Morphism v4.0
-   Módulo: CONTROLE DE ESTOQUE
-   ═══════════════════════════════════════════ */
 :root{
   --navy-deep:#050d18;--navy:#0a1628;--navy-light:#0e1e3a;--navy-mid:#132244;--navy-surface:#0c1a30;
   --accent-blue:#2563eb;--accent-cyan:#06b6d4;--accent-teal:#14b8a6;--accent-green:#10b981;
@@ -30,7 +25,6 @@
 html{font-size:16px;-webkit-tap-highlight-color:transparent;scroll-behavior:smooth}
 body{font-family:var(--font);background:var(--navy-deep);color:var(--text-primary);min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
-/* ═══ BACKGROUND SCENE ═══ */
 .bg-scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
 .bg-scene .orb{position:absolute;border-radius:50%;filter:blur(100px);will-change:transform}
 .bg-scene .orb-1{width:500px;height:500px;background:radial-gradient(circle,rgba(37,99,235,.12),transparent 70%);top:-15%;left:-10%;animation:orbDrift1 25s ease-in-out infinite}
@@ -43,7 +37,6 @@ body{font-family:var(--font);background:var(--navy-deep);color:var(--text-primar
 @keyframes orbDrift3{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(calc(-50% + 50px),calc(-50% - 40px)) scale(1.2)}}
 @keyframes gridScroll{0%{transform:translate(0,0)}100%{transform:translate(60px,60px)}}
 
-/* ═══ LOADING SCREEN ═══ */
 .ld-screen{position:fixed;inset:0;z-index:10000;background:var(--navy-deep);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s cubic-bezier(.4,0,.2,1),visibility .6s}
 .ld-screen.exit{opacity:0;visibility:hidden;pointer-events:none}
 .ld-logo{position:relative;width:100px;height:100px;margin-bottom:32px}
@@ -66,11 +59,9 @@ body{font-family:var(--font);background:var(--navy-deep);color:var(--text-primar
 .ld-step.done{opacity:.5;color:var(--accent-green)}
 .ld-step.done::before{content:'✓ ';color:var(--accent-green)}
 
-/* ═══ MAIN APP ═══ */
 .app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:0 16px 110px;opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s ease}
 .app.visible{opacity:1;transform:translateY(0)}
 
-/* ═══ TOP BAR ═══ */
 .top-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 0;position:sticky;top:0;z-index:100;margin:0 -16px;padding-left:16px;padding-right:16px}
 .top-bar::before{content:'';position:absolute;inset:0;background:rgba(5,13,24,.8);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);z-index:-1;border-bottom:1px solid rgba(37,99,235,.06)}
 .brand{display:flex;align-items:center;gap:11px}
@@ -83,18 +74,16 @@ body{font-family:var(--font);background:var(--navy-deep);color:var(--text-primar
 .badge{padding:5px 10px;border-radius:20px;font-size:.55rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;backdrop-filter:blur(10px)}
 .badge-online{background:rgba(16,185,129,.1);color:var(--accent-green);border:1px solid rgba(16,185,129,.2)}
 
-/* ═══ STATS ═══ */
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:20px 0 18px}
-.stat{padding:16px;border-radius:var(--radius);background:var(--glass);border:1px solid var(--glass-border);text-align:center;backdrop-filter:blur(20px);position:relative;overflow:hidden}
+.stat{padding:16px;border-radius:var(--radius);background:var(--glass);border:1px solid var(--glass-border);text-align:center;backdrop-filter:blur(20px);position:relative;overflow:hidden;cursor:pointer;-webkit-user-select:none;user-select:none;transition:transform .15s}
+.stat:active{transform:scale(.97)}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(37,99,235,.12),transparent)}
 .stat-value{font-family:var(--mono);font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
 .stat-label{font-size:.55rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:4px}
 
-/* ═══ SECTIONS ═══ */
 .section{margin-bottom:18px}
 .sec-label{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:10px;padding-left:2px}
 
-/* ═══ FORM FIELDS ═══ */
 .field{margin-bottom:12px}
 .field-label{display:block;font-size:.65rem;color:var(--text-secondary);font-weight:600;margin-bottom:6px;letter-spacing:.4px}
 .field-input{width:100%;padding:13px 15px;border-radius:var(--radius-sm);background:var(--navy-light);border:1px solid var(--glass-border);color:var(--text-primary);font-family:var(--font);font-size:.85rem;font-weight:500;transition:all .3s cubic-bezier(.4,0,.2,1);-webkit-appearance:none;appearance:none}
@@ -103,7 +92,6 @@ select.field-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http:/
 textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-/* ═══ VALIDITY PREVIEW ═══ */
 .val-preview{margin-top:8px;padding:10px 14px;border-radius:var(--radius-sm);font-size:.75rem;font-weight:600;display:none;align-items:center;gap:8px;letter-spacing:.2px}
 .val-preview.show{display:flex}
 .val-preview.ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:var(--accent-green)}
@@ -119,7 +107,6 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 .val-preview.critical .val-bar-fill{background:var(--accent-red);width:15%}
 .val-preview.expired .val-bar-fill{background:#dc2626;width:3%}
 
-/* ═══ CAMERA ═══ */
 .cam-section{border-radius:var(--radius-lg);background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(20px);overflow:hidden;margin-bottom:18px}
 .cam-sec-header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:8px}
 .cam-sec-header .sec-icon{font-size:1rem}
@@ -148,7 +135,6 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 .cam-btn.primary{background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));border:none;color:#fff;font-weight:700;box-shadow:0 4px 15px rgba(37,99,235,.2)}
 .cam-btn.primary:active{transform:scale(.97)}
 
-/* ═══ SUBMIT ═══ */
 .submit-wrap{position:relative}
 .submit-btn{width:100%;padding:18px;border-radius:var(--radius);border:none;color:#fff;font-family:var(--font);font-size:.95rem;font-weight:800;cursor:pointer;position:relative;overflow:hidden;transition:all .3s cubic-bezier(.4,0,.2,1);text-transform:uppercase;letter-spacing:1.5px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan),var(--accent-teal));background-size:200% 200%;animation:gradShift 4s ease infinite;box-shadow:0 6px 30px rgba(37,99,235,.25)}
 @keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
@@ -158,14 +144,12 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 @keyframes shimmer{0%{left:-100%}50%,100%{left:100%}}
 .submit-glow{position:absolute;bottom:-8px;left:20%;right:20%;height:20px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));filter:blur(20px);opacity:.3;border-radius:50%;pointer-events:none}
 
-/* ═══ TOAST ═══ */
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);padding:14px 24px;border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;z-index:9000;transition:transform .4s cubic-bezier(.175,.885,.32,1.275);max-width:90%;backdrop-filter:blur(20px);letter-spacing:.2px}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.success{background:rgba(16,185,129,.9);color:#fff;box-shadow:0 8px 30px rgba(16,185,129,.25)}
 .toast.error{background:rgba(239,68,68,.9);color:#fff;box-shadow:0 8px 30px rgba(239,68,68,.25)}
 .toast.info{background:rgba(37,99,235,.9);color:#fff;box-shadow:0 8px 30px rgba(37,99,235,.25)}
 
-/* ═══ SUCCESS OVERLAY ═══ */
 .ov-success{position:fixed;inset:0;z-index:8000;background:rgba(5,13,24,.92);display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .ov-success.show{display:flex}
 .ov-check-wrap{position:relative;width:90px;height:90px;margin-bottom:24px}
@@ -178,11 +162,7 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 .ov-detail{padding:16px 20px;border-radius:var(--radius);background:var(--glass);border:1px solid var(--glass-border);font-size:.75rem;color:var(--text-secondary);line-height:1.8;min-width:260px}
 .ov-detail strong{color:var(--text-primary);font-weight:600}
 
-/* ═══ RESPONSIVE ═══ */
-@media(max-width:380px){
-  .stats{grid-template-columns:1fr}
-  .field-row{grid-template-columns:1fr}
-}
+@media(max-width:380px){.stats{grid-template-columns:1fr}.field-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -195,7 +175,6 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
   <div class="noise"></div>
 </div>
 
-<!-- ═══ LOADING SCREEN ═══ -->
 <div class="ld-screen" id="ldScreen">
   <div class="ld-logo">
     <div class="ld-ring"></div>
@@ -220,10 +199,8 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
   </div>
 </div>
 
-<!-- ═══ APP ═══ -->
 <div class="app" id="mainApp">
 
-  <!-- TOP BAR -->
   <div class="top-bar">
     <div class="brand">
       <div class="brand-ic">
@@ -238,17 +215,15 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
       </div>
     </div>
     <div class="top-right">
-      <span class="badge badge-online" id="badgeOnline">● Online</span>
+      <span class="badge badge-online">● Online</span>
     </div>
   </div>
 
-  <!-- STATS -->
   <div class="stats">
-    <div class="stat"><div class="stat-value" id="statDia">0</div><div class="stat-label">Entradas Hoje</div></div>
-    <div class="stat"><div class="stat-value" id="statSessao">0</div><div class="stat-label">Nesta Sessão</div></div>
+    <div class="stat" onclick="tapReset('hoje')"><div class="stat-value" id="statDia">0</div><div class="stat-label">Entradas Hoje</div></div>
+    <div class="stat" onclick="tapReset('sessao')"><div class="stat-value" id="statSessao">0</div><div class="stat-label">Nesta Sessão</div></div>
   </div>
 
-  <!-- COLABORADOR -->
   <div class="section">
     <div class="sec-label">Colaborador</div>
     <div class="field">
@@ -263,23 +238,22 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
     </div>
   </div>
 
-  <!-- DADOS DO PRODUTO -->
   <div class="section">
     <div class="sec-label">Dados do Produto</div>
     <div class="field">
-      <label class="field-label" for="inSetor">Setor / Corredor</label>
+      <label class="field-label" for="inSetor">Setor</label>
       <select class="field-input" id="inSetor">
         <option value="">— Selecione —</option>
-        <option>CORREDOR 1</option>
-        <option>CORREDOR 2</option>
-        <option>CORREDOR 3</option>
-        <option>CORREDOR 4</option>
-        <option>CORREDOR 5</option>
-        <option>DEPÓSITO</option>
-        <option>CÂMARA FRIA</option>
+        <option>MERCEARIA</option>
+        <option>BEBIDAS</option>
+        <option>LIMPEZA</option>
+        <option>HIGIENE</option>
         <option>HORTIFRUTI</option>
-        <option>PADARIA</option>
         <option>AÇOUGUE</option>
+        <option>PADARIA</option>
+        <option>FRIOS E LATICÍNIOS</option>
+        <option>CONGELADOS</option>
+        <option>DEPÓSITO</option>
       </select>
     </div>
     <div class="field">
@@ -320,7 +294,6 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
     </div>
   </div>
 
-  <!-- CAMERA -->
   <div class="cam-section">
     <div class="cam-sec-header">
       <span class="sec-icon">📦</span>
@@ -346,7 +319,6 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
     </div>
   </div>
 
-  <!-- SUBMIT -->
   <div class="submit-wrap">
     <button class="submit-btn" id="btnSubmit" onclick="registrarProduto()">
       <span class="shimmer"></span>
@@ -357,10 +329,8 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- SUCCESS OVERLAY -->
 <div class="ov-success" id="ovSuccess">
   <div class="ov-check-wrap">
     <div class="ov-check-ring"></div>
@@ -372,45 +342,39 @@ textarea.field-input{resize:vertical;min-height:70px;line-height:1.5}
 </div>
 
 <script>
-/* ═══════════════════════════════════════════
-   CONTROLE DE ESTOQUE — LÓGICA v4.0
-   ═══════════════════════════════════════════ */
 var API_URL='https://script.google.com/macros/s/AKfycbyvw-6uBYct475K2nv5J-U2z39KHxbNOCqkVMaPl6MiFGnd3zTMiLPr5ivMfKNDZ55B/exec';
 var selfieBase64='',stream=null;
 var countDia=0,countSessao=0;
 
-/* ═══ LOADING SEQUENCE ═══ */
+/* ═══ LOADING — RÁPIDO ═══ */
 (function(){
   var steps=[
-    {el:'ldStep0',pct:20,delay:300},
-    {el:'ldStep1',pct:50,delay:700},
-    {el:'ldStep2',pct:80,delay:400},
-    {el:'ldStep3',pct:100,delay:400}
+    {el:'ldStep0',pct:30,delay:200},
+    {el:'ldStep1',pct:60,delay:300},
+    {el:'ldStep2',pct:90,delay:200},
+    {el:'ldStep3',pct:100,delay:200}
   ];
   var bar=document.getElementById('ldBarFill');
-  var i=0,cumDelay=200;
+  var i=0;
   function runStep(){
     if(i>=steps.length){
       setTimeout(function(){
         document.getElementById('ldScreen').classList.add('exit');
-        setTimeout(function(){document.getElementById('mainApp').classList.add('visible')},200);
-      },500);
+        setTimeout(function(){document.getElementById('mainApp').classList.add('visible')},150);
+      },300);
       return;
     }
     var s=steps[i];
-    setTimeout(function(){
-      if(i>0){document.getElementById(steps[i-1].el).classList.remove('active');document.getElementById(steps[i-1].el).classList.add('done')}
-      document.getElementById(s.el).classList.add('active');
-      bar.style.width=s.pct+'%';
-      i++;
-      setTimeout(runStep,s.delay);
-    },cumDelay);
-    cumDelay=0;
+    if(i>0){document.getElementById(steps[i-1].el).classList.remove('active');document.getElementById(steps[i-1].el).classList.add('done')}
+    document.getElementById(s.el).classList.add('active');
+    bar.style.width=s.pct+'%';
+    i++;
+    setTimeout(runStep,s.delay);
   }
-  runStep();
+  setTimeout(runStep,150);
 })();
 
-/* ═══ DAY RESET & COUNTERS ═══ */
+/* ═══ COUNTERS ═══ */
 function checkDayReset(){
   var d=new Date(),k=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
   if(localStorage.getItem('e_dk')!==k){
@@ -420,6 +384,25 @@ function checkDayReset(){
 function updateCounters(){
   document.getElementById('statDia').textContent=countDia;
   document.getElementById('statSessao').textContent=countSessao;
+}
+
+/* ═══ RESET 3 TOQUES ═══ */
+var tapCount={hoje:0,sessao:0};
+var tapTimer={hoje:null,sessao:null};
+function tapReset(tipo){
+  tapCount[tipo]++;
+  clearTimeout(tapTimer[tipo]);
+  tapTimer[tipo]=setTimeout(function(){tapCount[tipo]=0},800);
+  if(tapCount[tipo]>=3){
+    tapCount[tipo]=0;
+    if(tipo==='hoje'){
+      countDia=0;localStorage.setItem('e_dc','0');
+    }else{
+      countSessao=0;
+    }
+    updateCounters();
+    showToast('Contador zerado!','info');
+  }
 }
 
 /* ═══ TOAST ═══ */
@@ -474,7 +457,7 @@ function resetCamera(){
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
 }
 
-/* ═══ REGISTER PRODUCT ═══ */
+/* ═══ REGISTRAR — SEM DELAY ═══ */
 function registrarProduto(){
   var colab=document.getElementById('selColab').value;
   if(!colab){showToast('Selecione o colaborador','error');return}
@@ -501,41 +484,39 @@ function registrarProduto(){
     foto:selfieBase64
   };
 
-  fetch(API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-  .then(function(){
-    countDia++;countSessao++;
-    localStorage.setItem('e_dc',String(countDia));
-    updateCounters();
+  // Enviar sem esperar resposta (no-cors = fire and forget)
+  fetch(API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
 
-    var valParts=validade.split('-');
-    var valFormatted=valParts[2]+'/'+valParts[1]+'/'+valParts[0];
+  // Feedback IMEDIATO sem esperar a planilha
+  countDia++;countSessao++;
+  localStorage.setItem('e_dc',String(countDia));
+  updateCounters();
 
-    document.getElementById('ovDetail').innerHTML=
-      '<strong>Produto:</strong> '+payload.produto+'<br>'+
-      '<strong>Marca:</strong> '+(payload.marca||'—')+'<br>'+
-      '<strong>Quantidade:</strong> '+payload.quantidade+' '+payload.unidade+'<br>'+
-      '<strong>Validade:</strong> '+valFormatted+'<br>'+
-      '<strong>Setor:</strong> '+(payload.setor||'—')+'<br>'+
-      '<strong>Colaborador:</strong> '+payload.colaborador;
+  var valParts=validade.split('-');
+  var valFormatted=valParts[2]+'/'+valParts[1]+'/'+valParts[0];
 
-    document.getElementById('ovSuccess').classList.add('show');
-    setTimeout(function(){document.getElementById('ovSuccess').classList.remove('show')},4500);
+  document.getElementById('ovDetail').innerHTML=
+    '<strong>Produto:</strong> '+payload.produto+'<br>'+
+    '<strong>Marca:</strong> '+(payload.marca||'—')+'<br>'+
+    '<strong>Quantidade:</strong> '+payload.quantidade+' '+payload.unidade+'<br>'+
+    '<strong>Validade:</strong> '+valFormatted+'<br>'+
+    '<strong>Setor:</strong> '+(payload.setor||'—')+'<br>'+
+    '<strong>Colaborador:</strong> '+payload.colaborador;
 
-    // Limpar campos (manter colaborador)
-    document.getElementById('inProduto').value='';
-    document.getElementById('inMarca').value='';
-    document.getElementById('inLote').value='';
-    document.getElementById('inQtd').value='';
-    document.getElementById('inValidade').value='';
-    document.getElementById('inObs').value='';
-    document.getElementById('valPreview').className='val-preview';
-    resetCamera();
+  document.getElementById('ovSuccess').classList.add('show');
+  setTimeout(function(){document.getElementById('ovSuccess').classList.remove('show')},3000);
 
-    btn.disabled=false;btn.innerHTML='<span class="shimmer"></span>📦 Registrar Entrada';
-  }).catch(function(){
-    showToast('Erro ao enviar — tente novamente','error');
-    btn.disabled=false;btn.innerHTML='<span class="shimmer"></span>📦 Registrar Entrada';
-  });
+  // Limpar campos (manter colaborador)
+  document.getElementById('inProduto').value='';
+  document.getElementById('inMarca').value='';
+  document.getElementById('inLote').value='';
+  document.getElementById('inQtd').value='';
+  document.getElementById('inValidade').value='';
+  document.getElementById('inObs').value='';
+  document.getElementById('valPreview').className='val-preview';
+  resetCamera();
+
+  btn.disabled=false;btn.innerHTML='<span class="shimmer"></span>📦 Registrar Entrada';
 }
 
 /* ═══ INIT ═══ */
