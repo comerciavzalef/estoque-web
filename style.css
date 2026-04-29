@@ -597,3 +597,465 @@ input[type="date"].form-field { color-scheme: dark; }
   .submit-btn, .search-wrap, .cam-btn { display: none !important; }
   .container { padding: 10px !important; max-width: 100% !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   SWITCH RELATÓRIO — Apple Style
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Switch Row ────────────────────────────────────────────── */
+.relatorio-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface, rgba(255,255,255,.04));
+    border: 1px solid var(--border, rgba(255,255,255,.06));
+    border-radius: var(--r-lg, 16px);
+    padding: 16px 20px;
+    margin: 16px 0 24px;
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+}
+
+.relatorio-switch-label {
+    font-size: .9rem;
+    font-weight: 500;
+    color: var(--text-primary, #f5f5f7);
+    letter-spacing: -.01em;
+}
+
+/* ── Apple Switch ──────────────────────────────────────────── */
+.apple-switch {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.apple-switch-track {
+    width: 51px;
+    height: 31px;
+    border-radius: 15.5px;
+    background: rgba(120, 120, 128, .32);
+    position: relative;
+    transition: background .3s cubic-bezier(.4, 0, .2, 1);
+}
+
+.apple-switch.on .apple-switch-track {
+    background: #30d158;
+}
+
+.apple-switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3), 0 0 1px rgba(0,0,0,.15);
+    transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+}
+
+.apple-switch.on .apple-switch-thumb {
+    transform: translateX(20px);
+}
+
+/* ── Relatório Overlay ─────────────────────────────────────── */
+.relatorio-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #000;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .35s ease;
+}
+
+.relatorio-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+.rel-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 16px 20px;
+    background: rgba(0,0,0,.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.rel-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 980px;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #0a84ff;
+    color: #fff;
+    transition: all .2s ease;
+}
+
+.rel-toolbar-btn:active {
+    transform: scale(.96);
+}
+
+.rel-toolbar-btn.close {
+    background: rgba(255,255,255,.1);
+}
+
+/* ── Relatório Container ───────────────────────────────────── */
+.rel-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+.rel-header {
+    text-align: center;
+    padding-bottom: 32px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 32px;
+}
+
+.rel-logo {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    color: #f5f5f7;
+    margin-bottom: 4px;
+}
+
+.rel-empresa {
+    font-size: .85rem;
+    color: rgba(255,255,255,.5);
+    margin-bottom: 8px;
+}
+
+.rel-data {
+    font-size: .75rem;
+    color: rgba(255,255,255,.35);
+}
+
+/* ── Summary Cards ─────────────────────────────────────────── */
+.rel-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+}
+
+.rel-stat-card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+}
+
+.rel-stat-val {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -.04em;
+    margin-bottom: 2px;
+}
+
+.rel-stat-card.blue .rel-stat-val  { color: #0a84ff; }
+.rel-stat-card.red .rel-stat-val   { color: #ff453a; }
+.rel-stat-card.orange .rel-stat-val { color: #ff9f0a; }
+.rel-stat-card.yellow .rel-stat-val { color: #ffd60a; }
+.rel-stat-card.green .rel-stat-val  { color: #30d158; }
+
+.rel-stat-lbl {
+    font-size: .7rem;
+    font-weight: 500;
+    color: rgba(255,255,255,.45);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* ── Section ───────────────────────────────────────────────── */
+.rel-section {
+    margin-bottom: 40px;
+}
+
+.rel-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.rel-section-title.vencido  { background: rgba(255,69,58,.12); color: #ff453a; }
+.rel-section-title.critico  { background: rgba(255,159,10,.12); color: #ff9f0a; }
+.rel-section-title.atencao  { background: rgba(255,214,10,.1);  color: #ffd60a; }
+.rel-section-title.monitorar { background: rgba(10,132,255,.1);  color: #0a84ff; }
+.rel-section-title.zero     { background: rgba(255,69,58,.08);  color: #ff453a; }
+.rel-section-title.all      { background: rgba(255,255,255,.04); color: #f5f5f7; }
+
+/* ── Setor Group ───────────────────────────────────────────── */
+.rel-setor-group {
+    margin-bottom: 24px;
+}
+
+.rel-setor-name {
+    font-size: .85rem;
+    font-weight: 600;
+    color: rgba(255,255,255,.7);
+    padding: 8px 12px;
+    background: rgba(255,255,255,.03);
+    border-left: 3px solid #0a84ff;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 12px;
+}
+
+.rel-setor-count {
+    font-weight: 400;
+    color: rgba(255,255,255,.35);
+    font-size: .75rem;
+}
+
+/* ── Table ─────────────────────────────────────────────────── */
+.rel-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .75rem;
+}
+
+.rel-table thead th {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(255,255,255,.4);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    white-space: nowrap;
+}
+
+.rel-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    transition: background .15s;
+}
+
+.rel-table tbody tr:hover {
+    background: rgba(255,255,255,.03);
+}
+
+.rel-table tbody td {
+    padding: 10px 10px;
+    color: rgba(255,255,255,.75);
+    vertical-align: middle;
+}
+
+.rel-td-nome {
+    font-weight: 600;
+    color: #f5f5f7 !important;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rel-td-num {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.rel-td-num.zero {
+    color: #ff453a !important;
+}
+
+/* ── Status Badge (Table) ──────────────────────────────────── */
+.rel-status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: .6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+
+.rel-status-badge.ok        { background: rgba(48,209,88,.15);  color: #30d158; }
+.rel-status-badge.monitorar { background: rgba(10,132,255,.15); color: #0a84ff; }
+.rel-status-badge.atencao   { background: rgba(255,214,10,.15); color: #ffd60a; }
+.rel-status-badge.critico   { background: rgba(255,159,10,.15); color: #ff9f0a; }
+.rel-status-badge.vencido   { background: rgba(255,69,58,.15);  color: #ff453a; }
+.rel-status-badge.zero      { background: rgba(255,69,58,.15);  color: #ff453a; }
+
+/* Dias column color coding */
+.rel-dias-ok        { color: #30d158 !important; }
+.rel-dias-monitorar { color: #0a84ff !important; }
+.rel-dias-atencao   { color: #ffd60a !important; }
+.rel-dias-critico   { color: #ff9f0a !important; }
+.rel-dias-vencido   { color: #ff453a !important; }
+.rel-dias-zero      { color: #ff453a !important; }
+
+/* ── Footer ────────────────────────────────────────────────── */
+.rel-footer {
+    text-align: center;
+    font-size: .7rem;
+    color: rgba(255,255,255,.25);
+    padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,.06);
+    margin-top: 40px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PRINT — Relatório
+   ══════════════════════════════════════════════════════════════ */
+@media print {
+    /* Hide everything except the report */
+    body > *:not(#relatorioOverlay) {
+        display: none !important;
+    }
+
+    #relatorioOverlay {
+        position: static !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        background: #fff !important;
+        overflow: visible !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .rel-container {
+        padding: 10mm;
+        max-width: 100%;
+    }
+
+    .rel-header {
+        border-bottom-color: #ccc;
+    }
+
+    .rel-logo {
+        color: #000 !important;
+        font-size: 1.4rem;
+    }
+
+    .rel-empresa, .rel-data {
+        color: #555 !important;
+    }
+
+    .rel-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .rel-stat-card {
+        background: #f8f8f8 !important;
+        border-color: #ddd !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .rel-stat-val {
+        font-size: 1.4rem;
+    }
+
+    .rel-stat-lbl {
+        color: #666 !important;
+    }
+
+    .rel-section-title {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .rel-setor-name {
+        background: #f0f0f0 !important;
+        color: #333 !important;
+        border-left-color: #0a84ff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .rel-setor-count {
+        color: #888 !important;
+    }
+
+    .rel-table thead th {
+        color: #555 !important;
+        border-bottom-color: #ccc !important;
+    }
+
+    .rel-table tbody tr {
+        border-bottom-color: #eee !important;
+    }
+
+    .rel-table tbody td {
+        color: #333 !important;
+        font-size: .7rem;
+    }
+
+    .rel-td-nome {
+        color: #000 !important;
+    }
+
+    .rel-status-badge {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .rel-footer {
+        color: #999 !important;
+        border-top-color: #ccc !important;
+    }
+
+    /* Page breaks */
+    .rel-section {
+        break-inside: avoid;
+    }
+
+    .rel-setor-group {
+        break-inside: avoid;
+    }
+
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .rel-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .rel-table {
+        font-size: .65rem;
+    }
+
+    .rel-table thead th,
+    .rel-table tbody td {
+        padding: 6px 6px;
+    }
+
+    .rel-td-nome {
+        max-width: 120px;
+    }
+
+    .rel-container {
+        padding: 20px 12px 40px;
+    }
+}
