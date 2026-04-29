@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v4.1
+//  ESTOQUE DIGITAL — app.js v4.2
 //  Grupo Carlos Vaz — CRV/LAS
 //  Login · Painel · Entrada · Saída Rápida · Editar · Excluir
 //  + Relatório para Impressão
@@ -254,7 +254,6 @@ function renderPainel(d) {
   document.getElementById('statAlertas').textContent = alertas.length;
   document.getElementById('statZero').textContent = zeroCount;
 
-  // Alertas
   var alertSection = document.getElementById('alertasSection');
   var alertList = document.getElementById('alertasList');
 
@@ -780,92 +779,84 @@ function stopFotoCamera() {
 function toggleRelatorio() {
   if (relatorioAtivo) {
     fecharRelatorio();
-  } else {
-    gerarRelatorio();
+    return;
   }
-}
 
-function toggleRelatorio() {
-    if (relatorioAtivo) {
-        fecharRelatorio();
-        return;
-    }
+  // Se dados já carregaram, gera direto
+  if (dadosEstoque && dadosEstoque.produtos) {
+    gerarRelatorio();
+    return;
+  }
 
-    // Se dados já carregaram, gera direto
-    if (dadosEstoque && dadosEstoque.produtos) {
+  // Se não carregou, força sync e depois gera
+  toast('Carregando dados...');
+  var sw = document.getElementById('switchRelatorio');
+  if (sw) sw.classList.add('loading');
+
+  fetch(API_URL + '?sync=1')
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      dadosEstoque = d;
+      renderPainel(d);
+      setBadge(true);
+      localStorage.setItem('cv_estoque_cache', JSON.stringify(d));
+
+      if (d && d.produtos && d.produtos.length > 0) {
         gerarRelatorio();
-        return;
-    }
-
-    // Se não carregou, força sync e depois gera
-    toast('Carregando dados...');
-    var sw = document.getElementById('switchRelatorio');
-    if (sw) sw.classList.add('loading');
-
-    fetch(API_URL + '?sync=1')
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-            dadosEstoque = d;
-            renderPainel(d);
-            setBadge(true);
-            localStorage.setItem('cv_estoque_cache', JSON.stringify(d));
-
-            if (d && d.produtos && d.produtos.length > 0) {
-                gerarRelatorio();
-            } else {
-                mostrarRelatorioVazio();
-            }
-        })
-        .catch(function () {
-            // Tenta cache local
-            var cache = localStorage.getItem('cv_estoque_cache');
-            if (cache) {
-                dadosEstoque = JSON.parse(cache);
-                if (dadosEstoque && dadosEstoque.produtos && dadosEstoque.produtos.length > 0) {
-                    gerarRelatorio();
-                } else {
-                    mostrarRelatorioVazio();
-                }
-            } else {
-                mostrarRelatorioVazio();
-            }
-        })
-        .finally(function () {
-            if (sw) sw.classList.remove('loading');
-        });
+      } else {
+        mostrarRelatorioVazio();
+      }
+    })
+    .catch(function () {
+      var cache = localStorage.getItem('cv_estoque_cache');
+      if (cache) {
+        dadosEstoque = JSON.parse(cache);
+        if (dadosEstoque && dadosEstoque.produtos && dadosEstoque.produtos.length > 0) {
+          gerarRelatorio();
+        } else {
+          mostrarRelatorioVazio();
+        }
+      } else {
+        mostrarRelatorioVazio();
+      }
+    })
+    .finally(function () {
+      if (sw) sw.classList.remove('loading');
+    });
 }
 
 function mostrarRelatorioVazio() {
-    relatorioAtivo = true;
-    var sw = document.getElementById('switchRelatorio');
-    if (sw) sw.classList.add('on');
+  relatorioAtivo = true;
+  var sw = document.getElementById('switchRelatorio');
+  if (sw) sw.classList.add('on');
 
-    var overlay = document.getElementById('relatorioOverlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'relatorioOverlay';
-        document.body.appendChild(overlay);
-    }
+  var overlay = document.getElementById('relatorioOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'relatorioOverlay';
+    document.body.appendChild(overlay);
+  }
 
-    overlay.innerHTML =
-        '<div class="rel-toolbar no-print">' +
-        '<button class="rel-toolbar-btn close" onclick="fecharRelatorio()"><i class="fas fa-times"></i> Fechar</button>' +
-        '</div>' +
-        '<div class="rel-container">' +
-        '<div class="rel-header">' +
-        '<div class="rel-logo">ESTOQUE DIGITAL</div>' +
-        '<div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div>' +
-        '</div>' +
-        '<div class="rel-empty">' +
-        '<div class="rel-empty-icon">📋</div>' +
-        '<div class="rel-empty-title">Sem dados na planilha</div>' +
-        '<div class="rel-empty-desc">Nenhum produto foi encontrado no estoque. Cadastre produtos na aba Entrada e tente novamente.</div>' +
-        '</div>' +
-        '</div>';
+  overlay.innerHTML =
+    '<div class="rel-toolbar no-print">' +
+    '<button class="rel-toolbar-btn close" onclick="fecharRelatorio()"><i class="fas fa-times"></i> Fechar</button>' +
+    '</div>' +
+    '<div class="rel-container">' +
+    '<div class="rel-header">' +
+    '<div class="rel-logo">ESTOQUE DIGITAL</div>' +
+    '<div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div>' +
+    '</div>' +
+    '<div class="rel-empty">' +
+    '<div class="rel-empty-icon">📋</div>' +
+    '<div class="rel-empty-title">Sem dados na planilha</div>' +
+    '<div class="rel-empty-desc">Nenhum produto foi encontrado no estoque. Cadastre produtos na aba Entrada e tente novamente.</div>' +
+    '</div>' +
+    '</div>';
 
-    overlay.classList.add('show');
+  overlay.classList.add('show');
 }
 
+function gerarRelatorio() {
   relatorioAtivo = true;
   var sw = document.getElementById('switchRelatorio');
   if (sw) sw.classList.add('on');
@@ -880,30 +871,24 @@ function mostrarRelatorioVazio() {
 
   // ── Classify products ──
   var vencidos = [];
-  var criticos = [];   // ≤ 7 days
-  var atencao = [];    // 8–30 days
-  var monitorar = [];  // 31–60 days
+  var criticos = [];
+  var atencao = [];
+  var monitorar = [];
   var zerados = [];
   var todos = [];
-
-  // Group by setor
   var porSetor = {};
 
   produtos.forEach(function (p) {
-    // Total list
     todos.push(p);
 
-    // Setor grouping
     var setor = p.setor || 'SEM SETOR';
     if (!porSetor[setor]) porSetor[setor] = [];
     porSetor[setor].push(p);
 
-    // Zerados
     if (p.quantidade === 0) {
       zerados.push(p);
     }
 
-    // By expiry
     if (p.status === 'VENCIDO') {
       vencidos.push(p);
     } else if (p.status === 'CRÍTICO') {
@@ -915,7 +900,6 @@ function mostrarRelatorioVazio() {
     }
   });
 
-  // Sort by diasVencer ascending
   function sortByDias(a, b) {
     var da = (a.diasVencer !== '' && a.diasVencer !== null && a.diasVencer !== undefined) ? a.diasVencer : 9999;
     var db = (b.diasVencer !== '' && b.diasVencer !== null && b.diasVencer !== undefined) ? b.diasVencer : 9999;
@@ -930,7 +914,6 @@ function mostrarRelatorioVazio() {
   // ── Build HTML ──
   var html = '';
 
-  // Header
   html += '<div class="rel-container">';
   html += '<div class="rel-header">';
   html += '<div class="rel-logo">ESTOQUE DIGITAL</div>';
@@ -938,7 +921,6 @@ function mostrarRelatorioVazio() {
   html += '<div class="rel-data">Relatório gerado em ' + dataStr + ' às ' + horaStr + ' por ' + (sessao ? sessao.nome : '—') + '</div>';
   html += '</div>';
 
-  // Summary cards
   html += '<div class="rel-summary">';
   html += buildRelSummaryCard('Total de Produtos', todos.length, 'blue');
   html += buildRelSummaryCard('Estoque Zerado', zerados.length, 'red');
@@ -948,27 +930,22 @@ function mostrarRelatorioVazio() {
   html += buildRelSummaryCard('Monitorar (≤60d)', monitorar.length, 'blue');
   html += '</div>';
 
-  // ── Section: VENCIDOS ──
   if (vencidos.length > 0) {
-    html += buildRelSection('❌ Produtos Vencidos', vencidos, 'vencido', porSetor, 'VENCIDO');
+    html += buildRelSection('❌ Produtos Vencidos', vencidos, 'vencido');
   }
 
-  // ── Section: CRÍTICOS ──
   if (criticos.length > 0) {
-    html += buildRelSection('🔴 Produtos Críticos — Vencem em até 7 dias', criticos, 'critico', porSetor, 'CRÍTICO');
+    html += buildRelSection('🔴 Produtos Críticos — Vencem em até 7 dias', criticos, 'critico');
   }
 
-  // ── Section: ATENÇÃO ──
   if (atencao.length > 0) {
-    html += buildRelSection('🟡 Produtos em Atenção — Vencem em até 30 dias', atencao, 'atencao', porSetor, 'ATENÇÃO');
+    html += buildRelSection('🟡 Produtos em Atenção — Vencem em até 30 dias', atencao, 'atencao');
   }
 
-  // ── Section: MONITORAR ──
   if (monitorar.length > 0) {
-    html += buildRelSection('🔵 Produtos para Monitorar — Vencem em até 60 dias', monitorar, 'monitorar', porSetor, 'MONITORAR');
+    html += buildRelSection('🔵 Produtos para Monitorar — Vencem em até 60 dias', monitorar, 'monitorar');
   }
 
-  // ── Section: ESTOQUE ZERADO ──
   if (zerados.length > 0) {
     html += '<div class="rel-section">';
     html += '<div class="rel-section-title zero">🚫 Estoque Zerado</div>';
@@ -991,7 +968,6 @@ function mostrarRelatorioVazio() {
     html += '</div>';
   }
 
-  // ── Section: TODOS OS PRODUTOS POR SETOR ──
   html += '<div class="rel-section">';
   html += '<div class="rel-section-title all">📦 Inventário Completo por Setor</div>';
 
@@ -1008,12 +984,11 @@ function mostrarRelatorioVazio() {
 
   html += '</div>';
 
-  // Footer
   html += '<div class="rel-footer">';
   html += 'Estoque Digital — Grupo Carlos Vaz · Documento gerado automaticamente · ' + dataStr;
   html += '</div>';
 
-  html += '</div>'; // .rel-container
+  html += '</div>';
 
   // ── Insert into DOM ──
   var overlay = document.getElementById('relatorioOverlay');
@@ -1031,16 +1006,13 @@ function mostrarRelatorioVazio() {
     html;
 
   overlay.classList.add('show');
-
-  // Scroll to top
   overlay.scrollTop = 0;
 }
 
-function buildRelSection(title, items, cls, porSetor, statusFilter) {
+function buildRelSection(title, items, cls) {
   var html = '<div class="rel-section">';
   html += '<div class="rel-section-title ' + cls + '">' + title + '</div>';
 
-  // Group by setor
   var grouped = {};
   items.forEach(function (p) {
     var s = p.setor || 'SEM SETOR';
@@ -1107,7 +1079,6 @@ function buildRelSummaryCard(label, value, color) {
 }
 
 function imprimirRelatorio() {
-  // Small delay to ensure rendering is complete
   setTimeout(function () {
     window.print();
   }, 300);
