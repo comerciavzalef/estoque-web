@@ -785,11 +785,86 @@ function toggleRelatorio() {
   }
 }
 
-function gerarRelatorio() {
-  if (!dadosEstoque || !dadosEstoque.produtos) {
-    toast('Carregue os dados primeiro');
-    return;
-  }
+function toggleRelatorio() {
+    if (relatorioAtivo) {
+        fecharRelatorio();
+        return;
+    }
+
+    // Se dados já carregaram, gera direto
+    if (dadosEstoque && dadosEstoque.produtos) {
+        gerarRelatorio();
+        return;
+    }
+
+    // Se não carregou, força sync e depois gera
+    toast('Carregando dados...');
+    var sw = document.getElementById('switchRelatorio');
+    if (sw) sw.classList.add('loading');
+
+    fetch(API_URL + '?sync=1')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            dadosEstoque = d;
+            renderPainel(d);
+            setBadge(true);
+            localStorage.setItem('cv_estoque_cache', JSON.stringify(d));
+
+            if (d && d.produtos && d.produtos.length > 0) {
+                gerarRelatorio();
+            } else {
+                mostrarRelatorioVazio();
+            }
+        })
+        .catch(function () {
+            // Tenta cache local
+            var cache = localStorage.getItem('cv_estoque_cache');
+            if (cache) {
+                dadosEstoque = JSON.parse(cache);
+                if (dadosEstoque && dadosEstoque.produtos && dadosEstoque.produtos.length > 0) {
+                    gerarRelatorio();
+                } else {
+                    mostrarRelatorioVazio();
+                }
+            } else {
+                mostrarRelatorioVazio();
+            }
+        })
+        .finally(function () {
+            if (sw) sw.classList.remove('loading');
+        });
+}
+
+function mostrarRelatorioVazio() {
+    relatorioAtivo = true;
+    var sw = document.getElementById('switchRelatorio');
+    if (sw) sw.classList.add('on');
+
+    var overlay = document.getElementById('relatorioOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'relatorioOverlay';
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML =
+        '<div class="rel-toolbar no-print">' +
+        '<button class="rel-toolbar-btn close" onclick="fecharRelatorio()"><i class="fas fa-times"></i> Fechar</button>' +
+        '</div>' +
+        '<div class="rel-container">' +
+        '<div class="rel-header">' +
+        '<div class="rel-logo">ESTOQUE DIGITAL</div>' +
+        '<div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div>' +
+        '</div>' +
+        '<div class="rel-empty">' +
+        '<div class="rel-empty-icon">📋</div>' +
+        '<div class="rel-empty-title">Sem dados na planilha</div>' +
+        '<div class="rel-empty-desc">Nenhum produto foi encontrado no estoque. Cadastre produtos na aba Entrada e tente novamente.</div>' +
+        '</div>' +
+        '</div>';
+
+    overlay.classList.add('show');
+}
 
   relatorioAtivo = true;
   var sw = document.getElementById('switchRelatorio');
