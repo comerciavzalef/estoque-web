@@ -1,9 +1,8 @@
-
 // ══════════════════════════════════════════════════════════════
 //  SERVICE WORKER — Estoque Digital CRV/LAS
 // ══════════════════════════════════════════════════════════════
 
-var CACHE_NAME = 'cv-estoque-v4.0';
+var CACHE_NAME = 'cv-estoque-v4.1'; // Atualizado para quebrar o cache antigo
 
 var STATIC_ASSETS = [
   './',
@@ -69,6 +68,7 @@ self.addEventListener('fetch', function (e) {
   e.respondWith(
     caches.match(e.request).then(function (cached) {
       if (cached) {
+        // Atualização em background (Stale-while-revalidate)
         fetch(e.request).then(function (response) {
           if (response.status === 200) {
             caches.open(CACHE_NAME).then(function (cache) {
