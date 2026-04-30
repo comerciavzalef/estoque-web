@@ -202,7 +202,7 @@ function filtrarProdutos() {
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
-  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 10, qrbox: {width: 250, height: 150} },
+  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 20, qrbox: {width: 300, height: 250} },
     function(decodedText) {
       pararScannerEntrada();
       document.getElementById('entCodigoBarras').value = decodedText;
@@ -227,7 +227,7 @@ function buscarProdutoPorCodigo(codigo) {
 function iniciarScannerSaida() {
   document.getElementById('scannerSaidaArea').style.display = 'block';
   html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
-  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 10, qrbox: {width: 250, height: 150} },
+  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: {width: 300, height: 250} },
     function(decodedText) {
       pararScannerSaida();
       var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
