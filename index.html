@@ -127,13 +127,9 @@
           <input type="text" id="entCodigoBarras" class="ios-input-full" placeholder="Leia o código ou digite" onblur="buscarProdutoPorCodigo(this.value)" style="margin-top:8px;">
         </div>
         
-        <!-- CÂMERA DE ENTRADA COM FLASH -->
         <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
           <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-          <div style="display:flex; gap:10px; margin-top:10px;">
-            <button class="cam-btn" style="flex:1; justify-content:center; background:rgba(118,118,128,.15);" onclick="toggleFlashEntrada()" id="btnFlashEntrada" type="button">🔦 Flash</button>
-            <button class="cam-btn" style="flex:1; justify-content:center; background:var(--red-soft); color:var(--red);" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
-          </div>
+          <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
         </div>
 
         <!-- Setor -->
@@ -141,16 +137,14 @@
           <div class="ios-row-title">Setor</div>
           <select id="entSetor" class="ios-input">
             <option value="">Selecione</option>
-            <option value="MERCEARIA">Mercearia</option>
-            <option value="AÇOUGUE">Açougue</option>
-            <option value="LATICÍNIOS">Laticínios</option>
-            <option value="CONGELADOS">Congelados</option>
-            <option value="HORTIFRUTI">Hortifruti</option>
-            <option value="BEBIDAS">Bebidas</option>
+            <option value="EDUCAÇÃO">Educação</option>
+            <option value="SAÚDE">Saúde</option>
+            <option value="ASSISTÊNCIA SOCIAL">Assistência Social</option>
+            <option value="ADMINISTRAÇÃO">Administração</option>
+            <option value="INFRAESTRUTURA">Infraestrutura</option>
             <option value="LIMPEZA">Limpeza</option>
-            <option value="HIGIENE">Higiene</option>
-            <option value="UTILIDADES">Utilidades</option>
-            <option value="OUTROS">Outros</option>
+            <option value="ALIMENTAÇÃO">Alimentação</option>
+            <option value="ESCRITÓRIO">Escritório</option>
           </select>
         </div>
 
@@ -169,7 +163,7 @@
         <!-- Quantidade -->
         <div class="ios-card-row">
           <div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div>
-          <input type="number" id="entQtd" class="ios-input" placeholder="0" min="0" step="0.01">
+          <input type="number" id="entQtd" class="ios-input" placeholder="0">
         </div>
 
         <!-- Unidade -->
@@ -199,7 +193,7 @@
         </div>
       </div>
 
-      <!-- Câmera Avaria -->
+      <!-- Câmera Avaria (Standalone Card) -->
       <div class="section-label">Avaria / Identificação visual <span class="help-icon" data-tooltip="Use a câmara apenas se o produto não tiver código de barras ou se a caixa chegou rasgada/danificada.">?</span></div>
       <div class="ios-card" style="padding:16px;">
         <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; border: 1px dashed rgba(255,255,255,0.2); background:transparent;">📷 Adicionar Foto (Opcional)</button>
@@ -222,40 +216,32 @@
     <div class="tab-content" id="contentSaida">
       <div class="section-label">Saída em Lote (Carrinho) <span class="help-icon" data-tooltip="Vá bipando vários itens diferentes. No final, clique em confirmar para dar baixa em todos de uma vez na carrinha.">?</span></div>
 
+      <!-- BOTÃO BIPAR CORRIGIDO AQUI -->
       <div class="ios-card">
-        <div class="ios-card-row">
-          <input type="text" id="saidaSearch" class="ios-input-full search-icon-input" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()">
-          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="margin-left:12px; flex-shrink:0;">📷 Bipar</button>
+        <div class="ios-card-row" style="display: flex; gap: 12px; align-items: center; padding: 14px 16px;">
+          <input type="text" id="saidaSearch" class="ios-input-full search-icon-input" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()" style="flex: 1; margin: 0; width: 100%;">
+          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="margin: 0; flex-shrink: 0; border-radius: 12px; padding: 12px 18px;">📷 Bipar</button>
         </div>
       </div>
 
-      <!-- CÂMERA DE SAÍDA COM FLASH -->
-      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px; padding: 16px; background: var(--surface-1); border-radius: var(--r-lg);">
+      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
         <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-        <div style="display:flex; gap:10px; margin-top:10px;">
-          <button class="cam-btn" style="flex:1; justify-content:center; background:rgba(118,118,128,.15);" onclick="toggleFlashSaida()" id="btnFlashSaida" type="button">🔦 Flash</button>
-          <button class="cam-btn" style="flex:1; justify-content:center; background:var(--red-soft); color:var(--red);" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
-        </div>
+        <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
       </div>
 
+      <!-- SELECT DE MOTIVO CORRIGIDO AQUI -->
       <div id="carrinhoArea" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; margin-bottom:20px; display:none;">
         <div class="section-label" style="margin-top:0;">🛒 Itens Selecionados (<span id="cartCount">0</span>)</div>
         <div id="cartList"></div>
-        <div style="margin-top:16px;">
-          
-          <!-- Menu de Categorias -->
-          <select id="loteMotivoSelect" class="form-field" style="margin-bottom:8px; background:rgba(0,0,0,.4); appearance:none; background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22%3E%3Cpath d=%22M0 0l5 6 5-6%22 fill=%22none%22 stroke=%22rgba(235,235,245,.4)%22 stroke-width=%221.5%22/%3E%3C/svg%3E'); background-repeat:no-repeat; background-position:right 16px center;">
-            <option value="PEDIDO">📦 Pedido / Venda</option>
+        
+        <div style="margin-top:16px; padding-top: 16px; border-top: .5px solid var(--border);">
+          <label class="form-label" style="display:block; margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
+          <select id="loteMotivo" class="form-field" style="margin-bottom:20px; background:rgba(118, 118, 128, 0.15);">
+            <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
             <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
-            <option value="AVARIA">💥 Avaria / Descarte</option>
-            <option value="TRANSFERÊNCIA">🚚 Transferência</option>
-            <option value="OUTROS">Outros</option>
+            <option value="AVARIA">⚠️ Avaria / Perda</option>
           </select>
-          
-          <!-- Campo Opcional para Detalhes -->
-          <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino/Observação (Opcional)" style="margin-bottom:12px; background:rgba(0,0,0,.4);">
-          
-          <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
+          <button class="submit-btn" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
       </div>
 
