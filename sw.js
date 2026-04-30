@@ -2,7 +2,7 @@
 //  SERVICE WORKER — Estoque Digital CRV/LAS
 // ══════════════════════════════════════════════════════════════
 
-var CACHE_NAME = 'cv-estoque-v4.1'; // Atualizado para quebrar o cache antigo
+var CACHE_NAME = 'cv-estoque-v8.1'; // Atualizado para quebrar o cache antigo
 
 var STATIC_ASSETS = [
   './',
