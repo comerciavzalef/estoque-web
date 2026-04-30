@@ -26,6 +26,7 @@ function toggleSenha() {
   if (input.type === 'password') { input.type = 'text'; icon.textContent = '🙈'; } else { input.type = 'password'; icon.textContent = '👁️'; }
 }
 
+// ── FUNÇÃO DE LOGIN ATUALIZADA (CORREÇÃO DA SESSÃO HASH) ─────────────────
 async function fazerLogin() {
   var user = document.getElementById('loginUser').value.trim().toUpperCase();
   var pass = document.getElementById('loginPass').value.trim();
@@ -34,6 +35,7 @@ async function fazerLogin() {
   var lgpd = document.getElementById('lgpdCheck');
 
   err.textContent = '';
+
   if (!user || !pass) { err.textContent = 'Preencha todos os campos'; shakeLogin(); return; }
   if (lgpd && !lgpd.checked) { err.textContent = 'Aceite os termos da LGPD para entrar'; shakeLogin(); return; }
   
@@ -41,20 +43,38 @@ async function fazerLogin() {
 
   try {
     var senhaHash = await gerarHash(pass);
-    fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }), redirect: 'follow' })
-    .then(function (r) { return r.json(); }).then(function (d) {
+
+    fetch(API_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+      body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }), 
+      redirect: 'follow' 
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
       if (d.status === 'ok') { 
-        sessao = { nome: d.nome, nivel: d.nivel, senha: pass }; 
+        // 🔥 A MÁGICA AQUI: Guardamos o Hash na sessão em vez do texto limpo
+        sessao = { nome: d.nome, nivel: d.nivel, senha: senhaHash }; 
         localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); 
         esconderLogin(); iniciarApp(); 
-      } else { err.textContent = d.msg || 'Credenciais inválidas'; shakeLogin(); }
+      } else { 
+        err.textContent = d.msg || 'Credenciais inválidas'; shakeLogin(); 
+      }
     }).catch(function () {
       if (CREDS_OFFLINE[user] && CREDS_OFFLINE[user] === senhaHash) { 
-        sessao = { nome: user, nivel: user === 'GESTOR' ? 'gestor' : 'funcionario', senha: pass }; 
-        localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); esconderLogin(); iniciarApp(); 
-      } else { err.textContent = 'Sem conexão e credenciais inválidas'; shakeLogin(); }
+        // 🔥 A MÁGICA AQUI TAMBÉM (Modo Offline)
+        sessao = { nome: user, nivel: user === 'GESTOR' ? 'gestor' : 'funcionario', senha: senhaHash }; 
+        localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); 
+        esconderLogin(); iniciarApp(); 
+      } else { 
+        err.textContent = 'Sem conexão e credenciais inválidas'; shakeLogin(); 
+      }
     }).finally(function () { btn.disabled = false; btn.textContent = 'Entrar'; });
-  } catch(e) { err.textContent = 'Erro de segurança'; shakeLogin(); btn.disabled = false; btn.textContent = 'Entrar'; }
+
+  } catch(e) {
+    err.textContent = 'Erro no sistema de segurança'; shakeLogin();
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
 }
 
 async function gerarHash(texto) {
