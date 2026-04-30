@@ -277,3 +277,21 @@ select option { background: #1c1c1e !important; color: #fff !important; }
   .rel-section-title { border: 1px solid #000 !important; color: #000 !important; background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rel-logo { color: #000 !important; }
 }
+
+/* ══════════════ BLINDAGEM MÁXIMA DO OVERLAY DE SUCESSO (OK!) ══════════════ */
+#successOverlay { 
+  display: none !important; 
+  position: fixed !important; 
+  inset: 0; 
+  z-index: 9999; 
+  background: rgba(0,0,0,.85); 
+  backdrop-filter: blur(30px); 
+  -webkit-backdrop-filter: blur(30px);
+  align-items: center; 
+  justify-content: center; 
+  flex-direction: column; 
+}
+
+#successOverlay.show { 
+  display: flex !important; 
+}
