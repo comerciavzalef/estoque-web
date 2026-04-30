@@ -212,30 +212,29 @@ var isFlashOnSaida = false;
 function iniciarScannerSaida() {
   document.getElementById('scannerSaidaArea').style.display = 'block';
   html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
-  html5QrCodeSaida.start(
-
-  { facingMode: "environment" }, 
-
-  {
-
-    fps: 15,
-
-    qrbox: { width: 280, height: 120 }, // 📦 A caixa de leitura perfeita
-
-    aspectRatio: 1.0, // 🔴 O truque para deixar a câmera curtinha!
-
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-
-  },
-
-  function(decodedText)  {
+  
+  // AQUI ESTAVA O ERRO! Agora a variável está escrita corretamente:
+  html5QrcodeScannerSaida.start(
+    { facingMode: "environment" }, 
+    {
+      fps: 15,
+      qrbox: { width: 280, height: 120 }, // 📦 A caixa de leitura perfeita
+      aspectRatio: 1.0, // 🔴 O truque para deixar a câmera curtinha!
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    },
+    function(decodedText)  {
       pararScannerSaida();
       var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
       if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); }
       if(navigator.vibrate) navigator.vibrate(100);
     }, 
-    function(err) {}
-  ).catch(function(err) { toast("Erro na câmara."); pararScannerSaida(); });
+    function(err) {
+      // Ignora frames vazios
+    }
+  ).catch(function(err) { 
+    toast("Erro na câmara."); 
+    pararScannerSaida(); 
+  });
 }
 function pararScannerSaida() {
   if(html5QrcodeScannerSaida) { html5QrcodeScannerSaida.stop().then(function(){ html5QrcodeScannerSaida.clear(); html5QrcodeScannerSaida = null; isFlashOnSaida = false; }).catch(function(){}); }
