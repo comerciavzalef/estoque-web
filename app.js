@@ -11,7 +11,7 @@ var SESSION_KEY = 'cv_estoque_sessao';
 var CREDS_OFFLINE = {
   'LUCAS':  'lucas2026', 'TASSIO': 'tassio2026',
   'AMARAL': 'amaral2026', 'ALEX':   'alex2026',
-  'ALEF':   'GP.Carlos2026'
+  'GESTOR':   'GP.Carlos2026'
 };
 
 var sessao = null;
