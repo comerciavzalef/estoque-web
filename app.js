@@ -201,20 +201,10 @@ function iniciarScannerEntrada() {
   { facingMode: "environment" }, 
   { 
     fps: 15, 
-    qrbox: { width: 320, height: 140 },
-    aspectRatio: 1.777778,
+    qrbox: { width: 300, height: 85 }, // <-- Fenda fininha tipo App de Banco
     experimentalFeatures: { useBarCodeDetectorIfSupported: true }
   },
-    function(decodedText) {
-      pararScannerEntrada(); // <-- ISSO AQUI JÁ FECHA A CÂMERA SOZINHO NA HORA DO BIPE!
-      document.getElementById('entCodigoBarras').value = decodedText;
-      buscarProdutoPorCodigo(decodedText);
-      // Dispara um som rápido (opcional, truque de UX)
-      if(navigator.vibrate) navigator.vibrate(100);
-    }, function(err) {}
-  ).catch(function(err) { toast("Erro na câmara."); pararScannerEntrada(); });
-}
-
+// ... continua o seu function(decodedText) ...
 // ══════ CÂMERA DE SAÍDA ══════
 function iniciarScannerSaida() {
   document.getElementById('scannerSaidaArea').style.display = 'block';
