@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v5.0 (Scanner + Carrinho)
+//  ESTOQUE DIGITAL — app.js v6.0 (Fase 1 + Fase 2)
 //  Grupo Carlos Vaz — CRV/LAS
+//  Scanner · Carrinho · Auditoria Cega · Câmara Oculta
 // ══════════════════════════════════════════════════════════════
 
 // ── Config ───────────────────────────────────────────────────
@@ -20,7 +21,6 @@ var fotoStream = null;
 var refreshInterval = null;
 var relatorioAtivo = false;
 
-// Variáveis do Scanner e Carrinho
 var html5QrcodeScannerEntrada = null;
 var html5QrcodeScannerSaida = null;
 var carrinhoSaida = [];
@@ -43,7 +43,7 @@ function fazerLogin() {
   var btn = document.getElementById('loginBtn');
   err.textContent = '';
   if (!user || !pass) { err.textContent = 'Preencha todos os campos'; shakeLogin(); return; }
-  btn.disabled = true; btn.textContent = 'A verificar...';
+  btn.disabled = true; btn.textContent = 'Verificando...';
 
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'login', usuario: user, senha: pass }), redirect: 'follow' })
     .then(function (r) { return r.json(); }).then(function (d) {
@@ -91,16 +91,20 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
   document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
   
-  if (tab === 'entrada') initFotoCamera(); else stopFotoCamera();
+  // A câmara de entrada só inicia se o bloco estiver visível
+  if (tab === 'entrada') { if(document.getElementById('areaCameraEntrada').style.display === 'block') initFotoCamera(); } else { stopFotoCamera(); }
   if (tab !== 'entrada') pararScannerEntrada();
   if (tab !== 'saida') pararScannerSaida();
+  
   if (tab === 'saida' && dadosEstoque) { renderSaidaList(dadosEstoque.produtos); renderCarrinho(); }
+  if (tab === 'auditoria' && dadosEstoque) { renderAuditoriaList(dadosEstoque.produtos); }
 }
 
 function syncDados() {
   fetch(API_URL + '?sync=1').then(function (r) { return r.json(); }).then(function (d) {
       dadosEstoque = d; renderPainel(d); setBadge(true); localStorage.setItem('cv_estoque_cache', JSON.stringify(d));
       if(document.getElementById('tabSaida').classList.contains('active')) renderSaidaList(d.produtos);
+      if(document.getElementById('tabAuditoria').classList.contains('active')) renderAuditoriaList(d.produtos);
     }).catch(function () {
       setBadge(false); var cache = localStorage.getItem('cv_estoque_cache');
       if (cache && !dadosEstoque) { dadosEstoque = JSON.parse(cache); renderPainel(dadosEstoque); }
@@ -161,7 +165,7 @@ function iniciarScannerEntrada() {
       document.getElementById('entCodigoBarras').value = decodedText;
       buscarProdutoPorCodigo(decodedText);
     }, function(err) {}
-  ).catch(function(err) { toast("Erro na câmera."); pararScannerEntrada(); });
+  ).catch(function(err) { toast("Erro na câmara."); pararScannerEntrada(); });
 }
 function pararScannerEntrada() {
   if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; }).catch(function(){}); }
@@ -173,7 +177,7 @@ function buscarProdutoPorCodigo(codigo) {
   if (p) {
     document.getElementById('entSetor').value = p.setor; document.getElementById('entProduto').value = p.nome;
     document.getElementById('entUnidade').value = p.unidade; document.getElementById('entMarca').value = p.marca;
-    toast("📦 Produto reconhecido! Complete a quantidade.");
+    toast("📦 Produto reconhecido! Informe a quantidade.");
   }
 }
 
@@ -186,7 +190,7 @@ function iniciarScannerSaida() {
       var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
       if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); }
     }, function(err) {}
-  ).catch(function(err) { toast("Erro na câmera."); pararScannerSaida(); });
+  ).catch(function(err) { toast("Erro na câmara."); pararScannerSaida(); });
 }
 function pararScannerSaida() {
   if(html5QrcodeScannerSaida) { html5QrcodeScannerSaida.stop().then(function(){ html5QrcodeScannerSaida.clear(); html5QrcodeScannerSaida = null; }).catch(function(){}); }
@@ -204,7 +208,7 @@ function abrirDetalhe(linha) {
   if (p.diasVencer !== '' && p.diasVencer !== null && p.diasVencer !== undefined) { diasTxt = p.diasVencer + ' dias'; if (p.diasVencer < 0) diasColor = 'var(--red)'; else if (p.diasVencer <= 7) diasColor = 'var(--orange)'; else if (p.diasVencer <= 30) diasColor = 'var(--yellow)'; }
   h += '<div class="detalhe-item"><div class="d-val" style="color:' + diasColor + ';">' + diasTxt + '</div><div class="d-lbl">Dias p/ Vencer</div></div><div class="detalhe-item"><div class="d-val" style="font-size:.9rem;">' + (p.data || '—') + '</div><div class="d-lbl">Data Cadastro</div></div></div>';
   h += '<div class="detalhe-actions">';
-  if (p.quantidade > 0) { h += '<button class="btn-saida-det" onclick="adicionarAoCarrinhoDetalhe(' + p.linha + ')">🛒 Pôr no Carrinho</button>'; }
+  if (p.quantidade > 0) { h += '<button class="btn-saida-det" onclick="adicionarAoCarrinhoDetalhe(' + p.linha + ')">🛒 Adicionar ao Carrinho</button>'; }
   if (isGestor) { h += '<button class="btn-edit" onclick="abrirEditar(' + p.linha + ')">✏️ Editar</button><button class="btn-delete" onclick="confirmarExcluir(' + p.linha + ')">🗑️ Excluir</button>'; }
   h += '</div>'; document.getElementById('detalheBody').innerHTML = h; document.getElementById('detalheModal').classList.add('show');
 }
@@ -221,7 +225,7 @@ function abrirEditar(linha) {
   setores.forEach(function (s) { h += '<option value="' + s + '"' + (s === p.setor ? ' selected' : '') + '>' + s + '</option>'; });
   h += '</select></div><div class="form-row"><div class="form-group"><label class="form-label">Quantidade</label><input type="number" id="editQtd" class="form-field" value="' + p.quantidade + '" min="0" step="0.01"></div><div class="form-group"><label class="form-label">Unidade</label><select id="editUnidade" class="form-field">';
   ['UN', 'KG', 'L', 'CX', 'PCT', 'RL', 'FD', 'GL'].forEach(function (u) { h += '<option value="' + u + '"' + (u === p.unidade ? ' selected' : '') + '>' + u + '</option>'; });
-  h += '</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Validade</label><input type="date" id="editValidade" class="form-field" value="' + (p.validade || '') + '"></div><div class="form-group"><label class="form-label">Lote</label><input type="text" id="editLote" class="form-field" value="' + escapeHtml(p.lote) + '"></div></div><div class="form-group"><label class="form-label">Observações</label><input type="text" id="editObs" class="form-field" value=""></div><button class="submit-btn" id="btnSalvarEdit" onclick="salvarEdicao()" style="background:var(--blue);">Salvar Alterações</button></div>';
+  h += '</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Validade</label><input type="date" id="editValidade" class="form-field" value="' + (p.validade || '') + '"></div><div class="form-group"><label class="form-label">Lote</label><input type="text" id="editLote" class="form-field" value="' + escapeHtml(p.lote) + '"></div></div><div class="form-group"><label class="form-label">Observações</label><input type="text" id="editObs" class="form-field" value="' + escapeHtml(p.observacoes || '') + '"></div><button class="submit-btn" id="btnSalvarEdit" onclick="salvarEdicao()" style="background:var(--blue);">Salvar Alterações</button></div>';
   document.getElementById('editBody').innerHTML = h; document.getElementById('editModal').classList.add('show');
 }
 function fecharEditar() { document.getElementById('editModal').classList.remove('show'); }
@@ -245,7 +249,7 @@ function renderSaidaList(produtos) {
   if (comEstoque.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🚫</div><div class="empty-text">Estoque zerado</div></div>'; return; }
   var html = '';
   comEstoque.forEach(function (p) {
-    html += '<div class="saida-card"><div class="saida-icon">📦</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><div class="saida-qtd">' + p.quantidade + ' ' + p.unidade + '</div><button class="saida-btn" onclick="event.stopPropagation();adicionarAoCarrinho(' + p.linha + ')">+ Add</button></div>';
+    html += '<div class="saida-card" onclick="adicionarAoCarrinho(' + p.linha + ')"><div class="saida-icon">📦</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><div class="saida-qtd">' + p.quantidade + ' ' + p.unidade + '</div><button class="saida-btn">+ Add</button></div>';
   });
   el.innerHTML = html;
 }
@@ -312,12 +316,69 @@ function confirmarSaidaLote() {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  ENTRADA — FORMULÁRIO E FOTO
+//  AUDITORIA (CONFERÊNCIA CEGA)
+// ══════════════════════════════════════════════════════════════
+function renderAuditoriaList(produtos) {
+  var el = document.getElementById('auditoriaList');
+  if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível para auditoria</div></div>'; return; }
+  
+  var html = '';
+  produtos.forEach(function (p) {
+    html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + p.linha + ')">';
+    html += '<div class="saida-icon" style="background:var(--indigo); color:#fff;">🕵️</div>';
+    html += '<div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div>';
+    html += '<button class="saida-btn" style="background:var(--indigo);">Auditar</button></div>';
+  });
+  el.innerHTML = html;
+}
+
+function filtrarAuditoria() {
+  if (!dadosEstoque) return; var termo = document.getElementById('auditoriaSearch').value.toLowerCase().trim();
+  if (!termo) { renderAuditoriaList(dadosEstoque.produtos); return; }
+  var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); });
+  renderAuditoriaList(filtrados);
+}
+
+function abrirAuditoriaModal(linha) {
+  if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function(x) { return x.linha === linha; }); if (!p) return;
+  document.getElementById('auditoriaProdNome').textContent = p.nome;
+  document.getElementById('auditoriaProdSetor').textContent = p.marca + ' • ' + p.setor;
+  document.getElementById('auditoriaProdLinha').value = linha;
+  document.getElementById('auditoriaQtdFisica').value = '';
+  document.getElementById('auditoriaModal').classList.add('show');
+}
+
+function fecharAuditoria() { document.getElementById('auditoriaModal').classList.remove('show'); }
+
+function enviarAuditoria() {
+  var btn = document.getElementById('btnSalvarAuditoria');
+  var qtdStr = document.getElementById('auditoriaQtdFisica').value;
+  if (qtdStr === '') { toast('Informe a quantidade contada na prateleira'); return; }
+  
+  var qtd = parseFloat(qtdStr);
+  var linha = parseInt(document.getElementById('auditoriaProdLinha').value);
+  btn.disabled = true; btn.textContent = 'Verificando...';
+
+  var payload = { acao: 'auditoria', linha: linha, qtdFisica: qtd, nome: sessao.nome };
+
+  fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.status === 'ok') {
+        fecharAuditoria();
+        if (d.match) { showSuccess('✅', 'Tudo Certo!', d.msg); }
+        else { showSuccess('⚠️', 'Divergência Registada', 'Diferença de ' + d.diferenca + ' itens enviada para o Gestor.'); }
+      } else { toast(d.msg || 'Erro na auditoria'); }
+    }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ENTRADA — FORMULÁRIO E CÂMARA (Oculta)
 // ══════════════════════════════════════════════════════════════
 function enviarEntrada() {
   var produto = document.getElementById('entProduto').value.trim(); var qtd = document.getElementById('entQtd').value;
   if (!produto) { toast('Informe o nome do produto'); return; } if (!qtd || parseFloat(qtd) <= 0) { toast('Informe a quantidade'); return; }
-  var btn = document.getElementById('btnEntrada'); btn.disabled = true; btn.textContent = 'Registrando...';
+  var btn = document.getElementById('btnEntrada'); btn.disabled = true; btn.textContent = 'Registando...';
   var payload = {
     acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value,
     produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value,
@@ -327,11 +388,21 @@ function enviarEntrada() {
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
     .then(function (r) { return r.json(); }).then(function (d) {
       if (d.status === 'ok') { showSuccess('📦', d.mensagem, d.produto + ' — ' + d.quantidade + ' un'); limparFormEntrada(); syncDados(); } else { toast(d.msg || 'Erro'); }
-    }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Registrar Entrada'; });
+    }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Registar Entrada'; });
 }
 function limparFormEntrada() {
   document.getElementById('entCodigoBarras').value = ''; document.getElementById('entSetor').value = ''; document.getElementById('entProduto').value = ''; document.getElementById('entMarca').value = ''; document.getElementById('entQtd').value = ''; document.getElementById('entUnidade').value = 'UN'; document.getElementById('entValidade').value = ''; document.getElementById('entLote').value = ''; document.getElementById('entObs').value = ''; resetarFoto();
+  // Esconde a câmara novamente
+  document.getElementById('areaCameraEntrada').style.display = 'none';
+  document.getElementById('btnRevelarCamera').style.display = 'flex';
 }
+
+function mostrarCameraEntrada() {
+  document.getElementById('btnRevelarCamera').style.display = 'none';
+  document.getElementById('areaCameraEntrada').style.display = 'block';
+  initFotoCamera();
+}
+
 function initFotoCamera() {
   if (fotoStream) return; var video = document.getElementById('fotoVideo'); if (!video) return;
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 480, height: 480 } }).then(function (s) { fotoStream = s; video.srcObject = s; }).catch(function () { });
