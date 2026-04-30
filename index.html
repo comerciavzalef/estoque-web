@@ -11,6 +11,7 @@
 <title>Estoque Digital — CRV/LAS</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23000'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%230a84ff' font-family='Arial' font-weight='900' font-size='40'%3E📦%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,7 +20,6 @@
   <div class="orb"></div><div class="orb"></div><div class="orb"></div>
 </div>
 
-<!-- ══════════════ LOGIN ══════════════ -->
 <div id="loginScreen">
   <div class="login-card">
     <div class="brand-icon">📦</div>
@@ -42,17 +42,13 @@
   </div>
 </div>
 
-<!-- ══════════════ LOADING ══════════════ -->
 <div id="ldScreen" class="hidden">
   <div class="ld-spinner"></div>
   <div class="ld-text" id="ldText">Sincronizando...</div>
 </div>
 <div id="ldBarTop"></div>
 
-<!-- ══════════════ MAIN APP ══════════════ -->
 <div id="mainApp" style="display:none;">
-
-  <!-- Top Bar -->
   <div class="top-bar">
     <div class="top-bar-row1">
       <div class="brand">
@@ -69,77 +65,55 @@
   </div>
 
   <div class="container">
-
-    <!-- ══════ TAB NAV ══════ -->
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchTab('painel')" id="tabPainel">Painel</button>
       <button class="tab-btn" onclick="switchTab('entrada')" id="tabEntrada">+ Entrada</button>
-      <button class="tab-btn" onclick="switchTab('saida')" id="tabSaida">Saída Rápida</button>
+      <button class="tab-btn" onclick="switchTab('saida')" id="tabSaida">Saída/Carrinho</button>
     </div>
 
-    <!-- ══════ TAB: PAINEL ══════ -->
     <div class="tab-content active" id="contentPainel">
-
-      <!-- Stats -->
       <div class="section-label">Resumo do Estoque</div>
       <div class="stats-grid">
-        <div class="stat-card blue">
-          <span class="s-icon">📦</span>
-          <div class="s-label">Total Produtos</div>
-          <div class="s-value blue" id="statTotal">0</div>
-        </div>
-        <div class="stat-card green">
-          <span class="s-icon">✅</span>
-          <div class="s-label">Em Dia</div>
-          <div class="s-value green" id="statOk">0</div>
-        </div>
-        <div class="stat-card red">
-          <span class="s-icon">⚠️</span>
-          <div class="s-label">Alertas</div>
-          <div class="s-value red" id="statAlertas">0</div>
-        </div>
-        <div class="stat-card purple">
-          <span class="s-icon">🚫</span>
-          <div class="s-label">Estoque Zero</div>
-          <div class="s-value purple" id="statZero">0</div>
-        </div>
+        <div class="stat-card blue"><span class="s-icon">📦</span><div class="s-label">Total Produtos</div><div class="s-value blue" id="statTotal">0</div></div>
+        <div class="stat-card green"><span class="s-icon">✅</span><div class="s-label">Em Dia</div><div class="s-value green" id="statOk">0</div></div>
+        <div class="stat-card red"><span class="s-icon">⚠️</span><div class="s-label">Alertas</div><div class="s-value red" id="statAlertas">0</div></div>
+        <div class="stat-card purple"><span class="s-icon">🚫</span><div class="s-label">Estoque Zero</div><div class="s-value purple" id="statZero">0</div></div>
       </div>
 
-      <!-- Switch Relatório -->
-<div class="relatorio-switch-row" id="relatorioSwitchRow">
-    <span class="relatorio-switch-label">Relatório para Impressão</span>
-    <div class="apple-switch" id="switchRelatorio" onclick="toggleRelatorio()">
-        <div class="apple-switch-track">
-            <div class="apple-switch-thumb"></div>
-        </div>
-    </div>
-</div>
-      <!-- Alertas -->
+      <div class="relatorio-switch-row" id="relatorioSwitchRow">
+        <span class="relatorio-switch-label">Relatório para Impressão</span>
+        <div class="apple-switch" id="switchRelatorio" onclick="toggleRelatorio()"><div class="apple-switch-track"><div class="apple-switch-thumb"></div></div></div>
+      </div>
+
       <div id="alertasSection" style="display:none;">
         <div class="section-label">Alertas Ativos</div>
         <div id="alertasList"></div>
       </div>
 
-      <!-- Busca -->
       <div class="section-label">Produtos</div>
       <div class="search-wrap">
         <input type="text" id="searchInput" class="search-field" placeholder="Buscar produto, marca ou setor..." oninput="filtrarProdutos()">
       </div>
-
-      <!-- Lista de Produtos -->
-      <div id="produtosList">
-        <p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando...</p>
-      </div>
-
-      <!-- Timestamp -->
+      <div id="produtosList"><p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando...</p></div>
       <p class="sync-time" id="syncTime"></p>
     </div>
 
-    <!-- ══════ TAB: ENTRADA ══════ -->
     <div class="tab-content" id="contentEntrada">
       <div class="section-label">Registrar Nova Entrada</div>
-
       <div class="form-card">
+        
+        <div class="form-group">
+          <label class="form-label">Código de Barras</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="entCodigoBarras" class="form-field" placeholder="Escaneie ou digite o código" onblur="buscarProdutoPorCodigo(this.value)">
+            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button" style="flex-shrink:0;">📷 Escanear</button>
+          </div>
+          <div id="scannerEntradaArea" style="display:none; margin-top:12px;">
+            <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+            <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Setor</label>
           <select id="entSetor" class="form-field">
@@ -155,88 +129,71 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Produto *</label>
-          <input type="text" id="entProduto" class="form-field" placeholder="Nome do produto">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Marca</label>
-          <input type="text" id="entMarca" class="form-field" placeholder="Marca (opcional)">
-        </div>
+        <div class="form-group"><label class="form-label">Produto *</label><input type="text" id="entProduto" class="form-field" placeholder="Nome do produto"></div>
+        <div class="form-group"><label class="form-label">Marca</label><input type="text" id="entMarca" class="form-field" placeholder="Marca (opcional)"></div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Quantidade *</label>
-            <input type="number" id="entQtd" class="form-field" placeholder="0" min="0" step="0.01">
-          </div>
+          <div class="form-group"><label class="form-label">Quantidade *</label><input type="number" id="entQtd" class="form-field" placeholder="0" min="0" step="0.01"></div>
           <div class="form-group">
             <label class="form-label">Unidade</label>
             <select id="entUnidade" class="form-field">
-              <option value="UN">UN</option>
-              <option value="KG">KG</option>
-              <option value="L">L</option>
-              <option value="CX">CX</option>
-              <option value="PCT">PCT</option>
-              <option value="RL">RL</option>
-              <option value="FD">FD</option>
-              <option value="GL">GL</option>
+              <option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option>
+              <option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
             </select>
           </div>
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Validade</label>
-            <input type="date" id="entValidade" class="form-field">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Lote</label>
-            <input type="text" id="entLote" class="form-field" placeholder="Lote">
-          </div>
+          <div class="form-group"><label class="form-label">Validade</label><input type="date" id="entValidade" class="form-field"></div>
+          <div class="form-group"><label class="form-label">Lote</label><input type="text" id="entLote" class="form-field" placeholder="Lote"></div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Observações</label>
-          <input type="text" id="entObs" class="form-field" placeholder="Observações (opcional)">
-        </div>
+        <div class="form-group"><label class="form-label">Observações</label><input type="text" id="entObs" class="form-field" placeholder="Observações (opcional)"></div>
 
-        <!-- Foto -->
         <div class="form-group">
           <label class="form-label">Foto do Produto</label>
           <div class="foto-area">
             <video id="fotoVideo" autoplay playsinline></video>
             <canvas id="fotoCanvas"></canvas>
             <div class="foto-actions">
-              <button class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Foto</button>
+              <button class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Tirar Foto</button>
               <button class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none;">🔄 Refazer</button>
             </div>
             <div class="selfie-ok" id="fotoOk">✅ Foto capturada</div>
           </div>
         </div>
-
         <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Registrar Entrada</button>
       </div>
     </div>
 
-    <!-- ══════ TAB: SAÍDA RÁPIDA ══════ -->
     <div class="tab-content" id="contentSaida">
-      <div class="section-label">Saída Rápida de Estoque</div>
+      <div class="section-label">Saída em Lote (Carrinho)</div>
 
-      <div class="search-wrap">
-        <input type="text" id="saidaSearch" class="search-field" placeholder="Buscar produto para dar saída..." oninput="filtrarSaida()">
+      <div class="search-wrap" style="display:flex; gap:8px;">
+        <input type="text" id="saidaSearch" class="search-field" placeholder="Buscar produto..." oninput="filtrarSaida()">
+        <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex-shrink:0;">📷 Escanear</button>
+      </div>
+      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
+        <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+        <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
       </div>
 
+      <div id="carrinhoArea" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; margin-bottom:20px; display:none;">
+        <div class="section-label" style="margin-top:0;">🛒 Itens no Carrinho (<span id="cartCount">0</span>)</div>
+        <div id="cartList"></div>
+        <div style="margin-top:16px;">
+          <input type="text" id="loteMotivo" class="form-field" placeholder="Motivo/Requisição (Opcional)" style="margin-bottom:12px; padding:10px 14px;">
+          <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Saída</button>
+        </div>
+      </div>
+
+      <div class="section-label">Estoque Disponível (Clique para Adicionar)</div>
       <div id="saidaList">
         <p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando produtos...</p>
       </div>
     </div>
 
-  </div><!-- /container -->
-</div><!-- /mainApp -->
-
-<!-- ══════════════ MODAL: DETALHE PRODUTO ══════════════ -->
-<div class="modal-full" id="detalheModal">
+  </div></div><div class="modal-full" id="detalheModal">
   <div class="modal-bar">
     <h2>📋 Detalhes do Produto</h2>
     <button class="modal-close" onclick="fecharDetalhe()">✕</button>
@@ -244,58 +201,20 @@
   <div class="modal-body" id="detalheBody"></div>
 </div>
 
-<!-- ══════════════ MODAL: EDITAR PRODUTO ══════════════ -->
 <div class="modal-full" id="editModal" style="z-index:6000;">
-  <div class="modal-bar">
-    <h2>✏️ Editar Produto</h2>
-    <button class="modal-close" onclick="fecharEditar()">✕</button>
-  </div>
+  <div class="modal-bar"><h2>✏️ Editar Produto</h2><button class="modal-close" onclick="fecharEditar()">✕</button></div>
   <div class="modal-body" id="editBody"></div>
 </div>
 
-<!-- ══════════════ MODAL: CONFIRMAR SAÍDA ══════════════ -->
-<div class="modal-full" id="saidaModal" style="z-index:6000;">
-  <div class="modal-bar">
-    <h2>📤 Confirmar Saída</h2>
-    <button class="modal-close" onclick="fecharSaidaModal()">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="form-card" style="text-align:center;">
-      <p style="color:var(--text-secondary);font-size:.9rem;margin-bottom:8px;">Produto:</p>
-      <p style="color:var(--text-primary);font-size:1.1rem;font-weight:700;margin-bottom:4px;" id="saidaProdNome"></p>
-      <p style="color:var(--text-tertiary);font-size:.82rem;margin-bottom:20px;" id="saidaProdInfo"></p>
-      <input type="hidden" id="saidaProdLinha">
-      <div class="form-group">
-        <label class="form-label">Quantidade de Saída *</label>
-        <input type="number" id="saidaQtd" class="form-field" placeholder="0" min="0.01" step="0.01" style="text-align:center;font-size:1.3rem;font-weight:700;">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Motivo (opcional)</label>
-        <input type="text" id="saidaMotivo" class="form-field" placeholder="Ex: Requisição #12, uso interno...">
-      </div>
-      <button class="submit-btn" id="btnConfirmarSaida" onclick="confirmarSaida()" style="background:var(--orange);">Confirmar Saída</button>
-    </div>
-  </div>
-</div>
-
-<!-- Success Overlay -->
 <div class="success-overlay" id="successOverlay">
   <div class="success-icon" id="successIcon">✅</div>
   <div class="success-msg" id="successMsg">Operação realizada!</div>
   <div class="success-detail" id="successDetail"></div>
-  <!-- Overlay do Relatório -->
-<div id="relatorioOverlay" class="relatorio-overlay"></div>
+  <div id="relatorioOverlay" class="relatorio-overlay"></div>
 </div>
-
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- Service Worker -->
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(function(){});
-  }
-</script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(function(){});</script>
 <script src="app.js"></script>
 </body>
 </html>
