@@ -27,11 +27,11 @@
     <p class="sub">CRV/LAS — Controle de Estoque</p>
     <select id="loginUser" class="login-field">
       <option value="">Selecione o seu nome</option>
+      <option value="LUIZ">Luiz</option>
       <option value="LUCAS">Lucas</option>
       <option value="TASSIO">Tassio</option>
       <option value="AMARAL">Amaral</option>
       <option value="ALEX">Alex</option>
-      <option value="LUIZ">Luiz</option>
       <option value="GESTOR">Gestor</option>
     </select>
     
@@ -96,7 +96,7 @@
 
       <div class="relatorio-switch-row">
         <span class="relatorio-switch-label">Relatório para Impressão</span>
-        <div class="apple-switch" id="switchRelatorio" onclick="toggleRelatorio()"><div class="apple-switch-track"><div class="apple-switch-thumb"></div></div></div>
+        <button class="apple-switch" id="switchRelatorio" onclick="toggleRelatorio()" style="border:none; background:transparent;"><div class="apple-switch-track"><div class="apple-switch-thumb"></div></div></button>
       </div>
 
       <div id="alertasSection" style="display:none;">
@@ -107,7 +107,7 @@
       <div class="section-label">Base de Dados</div>
       <div class="ios-card">
         <div class="ios-card-row">
-          <input type="text" id="searchInput" class="ios-input-full search-icon-input form-field" placeholder="Buscar produto..." oninput="filtrarProdutos()">
+          <input type="text" id="searchInput" class="form-field search-icon-input" placeholder="Buscar produto..." oninput="filtrarProdutos()">
         </div>
       </div>
       
@@ -122,8 +122,8 @@
       <div class="ios-card">
         <div class="ios-card-row" style="flex-direction:column; align-items:stretch;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="ios-row-title">Código de Barras <span class="help-icon" data-tooltip="Bipe para preencher os dados automaticamente ou para vincular este código a um produto novo.">?</span></div>
-            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button" style="padding:6px 12px; font-size:.75rem; width: auto; margin: 0;">📷 Bipar</button>
+            <div class="ios-row-title">Código de Barras <span class="help-icon" data-tooltip="Bipe para preencher os dados automaticamente.">?</span></div>
+            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button" style="padding:6px 12px; font-size:.75rem; width:auto; margin:0;">📷 Bipar</button>
           </div>
           <input type="text" id="entCodigoBarras" class="form-field" placeholder="Leia o código ou digite" onblur="buscarProdutoPorCodigo(this.value)" style="margin-top:8px;">
         </div>
@@ -134,62 +134,45 @@
         </div>
 
         <div class="ios-card-row"><div class="ios-row-title">Setor</div>
-          <select id="entSetor" class="form-field" style="max-width: 200px;">
-            <option value="">Selecione</option>
-            <option value="AÇOUGUE">Açougue</option>
-            <option value="MERCEARIA">Mercearia</option>
-            <option value="PADARIA">Padaria</option>
-            <option value="LATICÍNIOS">Laticínios</option>
-            <option value="CONGELADOS">Congelados</option>
-            <option value="HORTIFRUTI">Hortifruti</option>
-            <option value="BEBIDAS">Bebidas</option>
-            <option value="LIMPEZA">Limpeza</option>
-            <option value="HIGIENE">Higiene</option>
-            <option value="UTILIDADES">Utilidades</option>
+          <select id="entSetor" class="form-field">
+            <option value="">Selecione</option><option value="MERCEARIA">Mercearia</option><option value="AÇOUGUE">Açougue</option><option value="LATICÍNIOS">Laticínios</option><option value="CONGELADOS">Congelados</option><option value="HORTIFRUTI">Hortifruti</option><option value="BEBIDAS">Bebidas</option><option value="LIMPEZA">Limpeza</option><option value="HIGIENE">Higiene</option><option value="UTILIDADES">Utilidades</option><option value="OUTROS">Outros</option>
           </select>
         </div>
-        <div class="ios-card-row"><div class="ios-row-title">Produto <span style="color:var(--red);">*</span></div><input type="text" id="entProduto" class="form-field" placeholder="Nome do item" style="max-width: 200px;"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Marca</div><input type="text" id="entMarca" class="form-field" placeholder="Opcional" style="max-width: 200px;"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div><input type="number" id="entQtd" class="form-field" placeholder="0" style="max-width: 200px;"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Unidade</div>
-          <select id="entUnidade" class="form-field" style="max-width: 200px;">
-            <option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
-          </select>
-        </div>
-        <div class="ios-card-row"><div class="ios-row-title">Validade</div><input type="date" id="entValidade" class="form-field" style="max-width: 200px;"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Lote</div><input type="text" id="entLote" class="form-field" placeholder="Ref/Lote" style="max-width: 200px;"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Observações</div><input type="text" id="entObs" class="form-field" placeholder="Opcional" style="max-width: 200px;"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Produto <span style="color:var(--red);">*</span></div><input type="text" id="entProduto" class="form-field" placeholder="Nome do item"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Marca</div><input type="text" id="entMarca" class="form-field" placeholder="Opcional"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div><input type="number" id="entQtd" class="form-field" placeholder="0"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Unidade</div><select id="entUnidade" class="form-field"><option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option></select></div>
+        <div class="ios-card-row"><div class="ios-row-title">Validade</div><input type="date" id="entValidade" class="form-field"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Lote</div><input type="text" id="entLote" class="form-field" placeholder="Ref/Lote"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Observações</div><input type="text" id="entObs" class="form-field" placeholder="Opcional"></div>
       </div>
 
-      <div class="section-label">Avaria / Identificação visual <span class="help-icon" data-tooltip="Use a câmara apenas se o produto não tiver código de barras ou se a caixa chegou rasgada/danificada.">?</span></div>
+      <div class="section-label">Avaria / Identificação visual <span class="help-icon" data-tooltip="Use a câmara se o produto estiver avariado ou quiser registrar imagem do lote.">?</span></div>
       <div class="ios-card" style="padding:16px;">
         <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; border: 1px dashed rgba(255,255,255,0.2); background:transparent;">📷 Adicionar Foto (Opcional)</button>
         <div class="foto-area" id="areaCameraEntrada" style="display:none; margin-top:12px;">
-          <div class="foto-preview-container">
-            <video id="fotoVideo" autoplay playsinline></video>
-            <canvas id="fotoCanvas" style="display:none;"></canvas>
+          <video id="fotoVideo" autoplay playsinline></video>
+          <canvas id="fotoCanvas" style="display:none;"></canvas>
+          <div class="foto-actions" style="margin-top:10px; display:flex; gap:10px; width:100%;">
+            <button type="button" class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()" style="margin:0;">📸 Capturar</button>
+            <button type="button" class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none; margin:0;">🔄 Refazer</button>
           </div>
-          <div class="foto-actions" style="margin-top:10px;">
-            <button type="button" class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Capturar</button>
-            <button type="button" class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none;">🔄 Refazer</button>
-          </div>
-          <div class="selfie-ok" id="fotoOk" style="display:none; color:var(--green); margin-top:8px; font-weight:600;">✅ Foto Registrada</div>
+          <div class="selfie-ok" id="fotoOk" style="display:none; color:var(--green); margin-top:12px; font-weight:700;">✅ Foto Registrada</div>
         </div>
       </div>
 
-      <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()" style="background:var(--blue);">Salvar Entrada</button>
+      <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Salvar Entrada</button>
     </div>
 
-    <!-- ══════ TAB: SAÍDA ══════ -->
+    <!-- ══════ TAB: SAÍDA (CARRINHO E VENCIDOS) ══════ -->
     <div class="tab-content" id="contentSaida">
-      <div class="section-label">Saída em Lote (Carrinho) <span class="help-icon" data-tooltip="Vá bipando vários itens diferentes. No final, clique em confirmar para dar baixa em todos de uma vez na carrinha.">?</span></div>
-
+      <div class="section-label">Saída em Lote (Carrinho)</div>
       <div class="ios-card">
         <div class="ios-card-row" style="display: flex; align-items: center; padding: 12px 16px; gap: 10px;">
           <div style="flex: 1; min-width: 0;">
-            <input type="text" id="saidaSearch" class="form-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()" style="margin: 0; width: 100%;">
+            <input type="text" id="saidaSearch" class="form-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()" style="margin: 0;">
           </div>
-          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex: 0 0 auto; width: auto; margin: 0; padding: 14px 20px; border-radius: 12px;">📷 Bipar</button>
+          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex: 0 0 auto; width: auto; margin: 0; padding: 14px 20px;">📷 Bipar</button>
         </div>
       </div>
 
@@ -199,15 +182,16 @@
       </div>
 
       <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px);">
-        <div class="section-label" style="margin: 0 0 16px 0; font-size: .85rem; color: var(--text-primary);">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>)</div>
+        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>)</div>
         <div id="cartList" style="margin-bottom: 24px;"></div>
+        
         <div style="padding-top: 20px; border-top: .5px solid var(--border);">
           <label class="form-label" style="margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
           <select id="loteMotivoSelect" class="form-field" style="margin-bottom:16px;">
             <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
             <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
             <option value="AVARIA">⚠️ Avaria / Perda</option>
-            <option value="VENCIDO">❌ Vencimento</option>
+            <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
           </select>
           <label class="form-label" style="margin-bottom:8px;">Destino / Observação</label>
           <input type="text" id="loteMotivoObs" class="form-field" placeholder="Ex: Para qual obra? (Opcional)" style="margin-bottom:24px;">
@@ -221,18 +205,16 @@
 
     <!-- ══════ TAB: AUDITORIA ══════ -->
     <div class="tab-content" id="contentAuditoria">
-      <div class="section-label">Conferência Cega <span class="help-icon" data-tooltip="O sistema esconde a quantidade esperada. Vá até à prateleira, conte com atenção e digite o valor real.">?</span></div>
-      <p style="color:var(--text-tertiary); font-size:0.75rem; margin-bottom:16px; padding:0 4px;">Conte os itens na prateleira e digite o valor real. O sistema não mostrará o estoque atual para garantir precisão.</p>
+      <div class="section-label">Conferência Cega <span class="help-icon" data-tooltip="O sistema esconde a quantidade esperada. Se der diferença, o App perguntará se quer corrigir o estoque na hora.">?</span></div>
+      <p style="color:var(--text-tertiary); font-size:0.75rem; margin-bottom:16px; padding:0 4px;">Conte os itens na prateleira e digite o valor real. O sistema ajustará eventuais quebras ou perdas.</p>
       
       <div class="ios-card">
         <div class="ios-card-row">
-          <input type="text" id="auditoriaSearch" class="form-field" placeholder="Buscar produto para auditar..." oninput="filtrarAuditoria()">
+          <input type="text" id="auditoriaSearch" class="form-field search-icon-input" placeholder="Buscar produto para auditar..." oninput="filtrarAuditoria()">
         </div>
       </div>
       
-      <div id="auditoriaList">
-        <p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p>
-      </div>
+      <div id="auditoriaList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
     </div>
 
   </div>
@@ -246,12 +228,10 @@
       <p style="color:var(--text-secondary); font-size:.9rem;" id="auditoriaProdSetor"></p>
       <p style="color:var(--text-primary); font-size:1.2rem; font-weight:700; margin:10px 0;" id="auditoriaProdNome"></p>
       <input type="hidden" id="auditoriaProdLinha">
-      
       <div style="margin-top:24px; padding-top:20px; border-top:.5px solid var(--border);">
         <label class="section-label" style="display:block; text-align:center; margin-bottom:12px;">Quantidade Real na Prateleira</label>
-        <input type="number" id="auditoriaQtdFisica" class="form-field" placeholder="0" style="text-align:center; font-size:2rem; font-weight:800; color:var(--blue); padding:16px;">
+        <input type="number" id="auditoriaQtdFisica" class="form-field" placeholder="0" style="text-align:center; font-size:2rem; font-weight:800; color:var(--blue); padding:12px;">
       </div>
-      
       <button class="submit-btn" id="btnSalvarAuditoria" onclick="enviarAuditoria()" style="background:var(--indigo); margin-top:24px;">Verificar Divergência</button>
     </div>
   </div>
