@@ -20,6 +20,7 @@
   <div class="orb"></div><div class="orb"></div><div class="orb"></div>
 </div>
 
+<!-- ══════════════ LOGIN ══════════════ -->
 <div id="loginScreen">
   <div class="login-card">
     <div class="brand-icon">📦</div>
@@ -31,7 +32,7 @@
       <option value="TASSIO">Tassio</option>
       <option value="AMARAL">Amaral</option>
       <option value="ALEX">Alex</option>
-      <option value="GESTOR">Gestor</option>
+      <option value="ALEF">Alef (Gestor)</option>
     </select>
     <div style="position:relative; margin-bottom:14px;">
       <input type="password" id="loginPass" class="login-field" placeholder="Sua senha" autocomplete="off" style="padding-right:48px; margin-bottom:0;">
@@ -42,12 +43,14 @@
   </div>
 </div>
 
+<!-- ══════════════ LOADING ══════════════ -->
 <div id="ldScreen" class="hidden">
   <div class="ld-spinner"></div>
   <div class="ld-text" id="ldText">Sincronizando...</div>
 </div>
 <div id="ldBarTop"></div>
 
+<!-- ══════════════ MAIN APP ══════════════ -->
 <div id="mainApp" style="display:none;">
   <div class="top-bar">
     <div class="top-bar-row1">
@@ -65,6 +68,7 @@
   </div>
 
   <div class="container">
+    <!-- ══════ TAB NAV ══════ -->
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchTab('painel')" id="tabPainel">Painel</button>
       <button class="tab-btn" onclick="switchTab('entrada')" id="tabEntrada">Entrada</button>
@@ -72,6 +76,7 @@
       <button class="tab-btn" onclick="switchTab('auditoria')" id="tabAuditoria">Auditoria</button>
     </div>
 
+    <!-- ══════ TAB: PAINEL ══════ -->
     <div class="tab-content active" id="contentPainel">
       <div class="section-label">Resumo do Estoque</div>
       <div class="stats-grid">
@@ -99,12 +104,14 @@
       <p class="sync-time" id="syncTime"></p>
     </div>
 
+    <!-- ══════ TAB: ENTRADA ══════ -->
     <div class="tab-content" id="contentEntrada">
       <div class="section-label">Nova Entrada de Mercadoria</div>
       <div class="form-card">
         
         <div class="form-group">
-          <label class="form-label">Código de Barras</label>
+          <!-- TOOLTIP ADICIONADO AQUI -->
+          <label class="form-label">Código de Barras <span class="help-icon" data-tooltip="Bipe para preencher os dados automaticamente ou para vincular este código a um produto novo.">?</span></label>
           <div style="display:flex; gap:8px;">
             <input type="text" id="entCodigoBarras" class="form-field" placeholder="Leia o código" onblur="buscarProdutoPorCodigo(this.value)">
             <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button">📷 Scanner</button>
@@ -146,7 +153,8 @@
         <div class="form-group"><label class="form-label">Observações</label><input type="text" id="entObs" class="form-field" placeholder="Opcional"></div>
 
         <div class="form-group">
-          <label class="form-label">Foto de Avaria / Identificação</label>
+          <!-- TOOLTIP ADICIONADO AQUI -->
+          <label class="form-label">Foto de Avaria / Identificação <span class="help-icon" data-tooltip="Use a câmara apenas se o produto não tiver código de barras ou se a caixa chegou rasgada/danificada.">?</span></label>
           <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; margin-bottom: 10px; border: 1px dashed rgba(255,255,255,0.2);">📷 Abrir Câmara (Opcional)</button>
           
           <div class="foto-area" id="areaCameraEntrada" style="display:none;">
@@ -164,8 +172,10 @@
       </div>
     </div>
 
+    <!-- ══════ TAB: SAÍDA (CARRINHO) ══════ -->
     <div class="tab-content" id="contentSaida">
-      <div class="section-label">Saída em Lote (Carrinho)</div>
+      <!-- TOOLTIP ADICIONADO AQUI -->
+      <div class="section-label">Saída em Lote (Carrinho) <span class="help-icon" data-tooltip="Vá bipando vários itens diferentes. No final, clique em confirmar para dar baixa em todos de uma vez na carrinha.">?</span></div>
 
       <div class="search-wrap" style="display:flex; gap:8px;">
         <input type="text" id="saidaSearch" class="search-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()">
@@ -189,8 +199,10 @@
       <div id="saidaList"></div>
     </div>
 
+    <!-- ══════ TAB: AUDITORIA (CONFERÊNCIA CEGA) ══════ -->
     <div class="tab-content" id="contentAuditoria">
-      <div class="section-label">Conferência Cega de Estoque</div>
+      <!-- TOOLTIP ADICIONADO AQUI -->
+      <div class="section-label">Conferência Cega <span class="help-icon" data-tooltip="O sistema esconde a quantidade esperada. Vá até à prateleira, conte com atenção e digite o valor real.">?</span></div>
       <p style="color:var(--text-tertiary); font-size:0.75rem; margin-bottom:16px; padding:0 4px;">Conte os itens na prateleira e digite o valor real. O sistema não mostrará o estoque atual para garantir precisão.</p>
       
       <div class="search-wrap">
@@ -205,6 +217,7 @@
   </div>
 </div>
 
+<!-- ══════════════ MODAL: CONFERÊNCIA ══════════════ -->
 <div class="modal-full" id="auditoriaModal" style="z-index:6500;">
   <div class="modal-bar"><h2>🕵️ Auditar Item</h2><button class="modal-close" onclick="fecharAuditoria()">✕</button></div>
   <div class="modal-body">
@@ -223,6 +236,7 @@
   </div>
 </div>
 
+<!-- ══════════════ OUTROS MODALS ══════════════ -->
 <div class="modal-full" id="detalheModal">
   <div class="modal-bar"><h2>📋 Detalhes</h2><button class="modal-close" onclick="fecharDetalhe()">✕</button></div>
   <div class="modal-body" id="detalheBody"></div>
