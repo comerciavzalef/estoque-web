@@ -127,19 +127,16 @@
           <input type="text" id="entCodigoBarras" class="ios-input-full" placeholder="Leia o código ou digite" onblur="buscarProdutoPorCodigo(this.value)" style="margin-top:8px;">
         </div>
         
+        <!-- CÂMERA DE ENTRADA COM FLASH -->
         <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
           <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-          <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
-  <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-  
-  <!-- Novos Botões: Flash e Parar -->
-  <div style="display:flex; gap:10px; margin-top:10px;">
-    <button class="cam-btn" style="flex:1; justify-content:center; background:rgba(118,118,128,.15);" onclick="toggleFlashEntrada()" id="btnFlashEntrada" type="button">🔦 Flash</button>
-    <button class="cam-btn" style="flex:1; justify-content:center; background:var(--red-soft); color:var(--red);" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
-  </div>
-</div>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="cam-btn" style="flex:1; justify-content:center; background:rgba(118,118,128,.15);" onclick="toggleFlashEntrada()" id="btnFlashEntrada" type="button">🔦 Flash</button>
+            <button class="cam-btn" style="flex:1; justify-content:center; background:var(--red-soft); color:var(--red);" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
+          </div>
+        </div>
 
-       <!-- Setor -->
+        <!-- Setor -->
         <div class="ios-card-row">
           <div class="ios-row-title">Setor</div>
           <select id="entSetor" class="ios-input">
@@ -172,7 +169,7 @@
         <!-- Quantidade -->
         <div class="ios-card-row">
           <div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div>
-          <input type="number" id="entQtd" class="ios-input" placeholder="0">
+          <input type="number" id="entQtd" class="ios-input" placeholder="0" min="0" step="0.01">
         </div>
 
         <!-- Unidade -->
@@ -202,7 +199,7 @@
         </div>
       </div>
 
-      <!-- Câmera Avaria (Standalone Card) -->
+      <!-- Câmera Avaria -->
       <div class="section-label">Avaria / Identificação visual <span class="help-icon" data-tooltip="Use a câmara apenas se o produto não tiver código de barras ou se a caixa chegou rasgada/danificada.">?</span></div>
       <div class="ios-card" style="padding:16px;">
         <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; border: 1px dashed rgba(255,255,255,0.2); background:transparent;">📷 Adicionar Foto (Opcional)</button>
@@ -232,9 +229,13 @@
         </div>
       </div>
 
-      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
+      <!-- CÂMERA DE SAÍDA COM FLASH -->
+      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px; padding: 16px; background: var(--surface-1); border-radius: var(--r-lg);">
         <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-        <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="cam-btn" style="flex:1; justify-content:center; background:rgba(118,118,128,.15);" onclick="toggleFlashSaida()" id="btnFlashSaida" type="button">🔦 Flash</button>
+          <button class="cam-btn" style="flex:1; justify-content:center; background:var(--red-soft); color:var(--red);" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
+        </div>
       </div>
 
       <div id="carrinhoArea" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; margin-bottom:20px; display:none;">
@@ -242,7 +243,7 @@
         <div id="cartList"></div>
         <div style="margin-top:16px;">
           <input type="text" id="loteMotivo" class="form-field" placeholder="Motivo/Destino da Saída" style="margin-bottom:12px; background:rgba(0,0,0,.4);">
-          <button class="submit-btn" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
+          <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
       </div>
 
@@ -288,7 +289,6 @@
   </div>
 </div>
 
-<!-- Outros Modals originais intocados estruturalmente para não quebrar o app.js -->
 <div class="modal-full" id="detalheModal">
   <div class="modal-bar"><h2>📋 Detalhes</h2><button class="modal-close" onclick="fecharDetalhe()">✕</button></div>
   <div class="modal-body" id="detalheBody"></div>
