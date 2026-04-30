@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v6.0 (Fase 1 + Fase 2)
+//  ESTOQUE DIGITAL — app.js v6.1 (Ultrawide Scanner + Categorias de Mercado)
 //  Grupo Carlos Vaz — CRV/LAS
-//  Scanner · Carrinho · Auditoria Cega · Câmara Oculta
+//  Scanner deitado, Carrinho, Auditoria Cega
 // ══════════════════════════════════════════════════════════════
 
 // ── Config ───────────────────────────────────────────────────
@@ -36,7 +36,7 @@ function toggleSenha() {
   if (input.type === 'password') { input.type = 'text'; icon.textContent = '🙈'; } else { input.type = 'password'; icon.textContent = '👁️'; }
 }
 
-// ── FUNÇÃO DE LOGIN ATUALIZADA (LGPD + HASH) ─────────────────
+// ── FUNÇÃO DE LOGIN (LGPD + HASH) ─────────────────
 async function fazerLogin() {
   var user = document.getElementById('loginUser').value.trim().toUpperCase();
   var pass = document.getElementById('loginPass').value.trim();
@@ -45,23 +45,18 @@ async function fazerLogin() {
   var lgpd = document.getElementById('lgpdCheck');
 
   err.textContent = '';
-
-  // 1. Trava de Preenchimento
   if (!user || !pass) { err.textContent = 'Preencha todos os campos'; shakeLogin(); return; }
-  
-  // 2. Trava da LGPD Jurídica
   if (lgpd && !lgpd.checked) { err.textContent = 'Aceite os termos da LGPD para entrar'; shakeLogin(); return; }
   
   btn.disabled = true; btn.textContent = 'Autenticando...';
 
   try {
-    // 3. Criptografa a senha antes de enviar (Nunca viaja em texto limpo)
     var senhaHash = await gerarHash(pass);
 
     fetch(API_URL, { 
       method: 'POST', 
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
-      body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }), // <-- Envia o Hash
+      body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }),
       redirect: 'follow' 
     })
     .then(function (r) { return r.json(); })
@@ -74,7 +69,6 @@ async function fazerLogin() {
         err.textContent = d.msg || 'Credenciais inválidas'; shakeLogin(); 
       }
     }).catch(function () {
-      // Modo Offline usando o Hash
       if (CREDS_OFFLINE[user] && CREDS_OFFLINE[user] === senhaHash) { 
         sessao = { nome: user, nivel: user === 'GESTOR' ? 'gestor' : 'funcionario', senha: pass }; 
         localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); 
@@ -90,7 +84,6 @@ async function fazerLogin() {
   }
 }
 
-// ── MOTOR DE CRIPTOGRAFIA SHA-256 ────────────────────────────
 async function gerarHash(texto) {
   const msgBuffer = new TextEncoder().encode(texto);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -134,7 +127,6 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
   document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
   
-  // A câmara de entrada só inicia se o bloco estiver visível
   if (tab === 'entrada') { if(document.getElementById('areaCameraEntrada').style.display === 'block') initFotoCamera(); } else { stopFotoCamera(); }
   if (tab !== 'entrada') pararScannerEntrada();
   if (tab !== 'saida') pararScannerSaida();
@@ -197,12 +189,15 @@ function filtrarProdutos() {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  LEITOR DE CÓDIGO DE BARRAS (Scanner)
+//  LEITOR ULTRAWIDE (Horizontal Laser Scanner)
 // ══════════════════════════════════════════════════════════════
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
-  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 320, height: 100 } },
+  toast('📱 Deite o telemóvel para escancear melhor!');
+  
+  // Resolução gigante na horizontal (600x200) para criar o "Laser Ultrawide"
+  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 600, height: 200 } },
     function(decodedText) {
       pararScannerEntrada();
       document.getElementById('entCodigoBarras').value = decodedText;
@@ -227,7 +222,10 @@ function buscarProdutoPorCodigo(codigo) {
 function iniciarScannerSaida() {
   document.getElementById('scannerSaidaArea').style.display = 'block';
   html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
-  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: {width: 300, height: 250} },
+  toast('📱 Deite o telemóvel para escancear melhor!');
+
+  // Resolução gigante na horizontal (600x200) para criar o "Laser Ultrawide"
+  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 600, height: 200 } },
     function(decodedText) {
       pararScannerSaida();
       var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
