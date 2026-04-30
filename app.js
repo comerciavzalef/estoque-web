@@ -212,10 +212,23 @@ var isFlashOnSaida = false;
 function iniciarScannerSaida() {
   document.getElementById('scannerSaidaArea').style.display = 'block';
   html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
-  html5QrcodeScannerSaida.start(
-    { facingMode: "environment" }, 
-    { fps: 15, qrbox: { width: 300, height: 85 }, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
-    function(decodedText) {
+  html5QrCodeSaida.start(
+
+  { facingMode: "environment" }, 
+
+  {
+
+    fps: 15,
+
+    qrbox: { width: 280, height: 120 }, // 📦 A caixa de leitura perfeita
+
+    aspectRatio: 1.0, // 🔴 O truque para deixar a câmera curtinha!
+
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+
+  },
+
+  function(decodedText)  {
       pararScannerSaida();
       var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
       if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); }
