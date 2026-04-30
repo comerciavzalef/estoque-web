@@ -1,29 +1,20 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v6.1 (Ultrawide Scanner + Categorias de Mercado)
+//  ESTOQUE DIGITAL — app.js v9.1 (Scanner Vertical Apple, Flash + Motivos)
 //  Grupo Carlos Vaz — CRV/LAS
-//  Scanner deitado, Carrinho, Auditoria Cega
 // ══════════════════════════════════════════════════════════════
 
-// ── Config ───────────────────────────────────────────────────
 var API_URL = 'https://script.google.com/macros/s/AKfycbyvw-6uBYct475K2nv5J-U2z39KHxbNOCqkVMaPl6MiFGnd3zTMiLPr5ivMfKNDZ55B/exec';
 var SESSION_KEY = 'cv_estoque_sessao';
 
 var CREDS_OFFLINE = {
   'LUCAS':  '1e79f09abad6c8321bf6a1dee19aa4949ce95fa3f962361869c406555ade9062', 'TASSIO': '53c822e4be542a847100324d05458d7c155d9a0a3ee2c8ea6a621c3b426b123d',
   'AMARAL': 'd16bcb871bbfe495833cee0fd592bbf47540fee7801ade3d8ccf7b97372ad042', 'ALEX':   'e3f961a998c170860de4cab5c8f9548522a1938d6599cf40f827333b503d8eed',
-  'GESTOR':   '704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157'
+  'GESTOR': '704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157'
 };
 
-var sessao = null;
-var dadosEstoque = null;
-var fotoData = '';
-var fotoStream = null;
-var refreshInterval = null;
-var relatorioAtivo = false;
-
-var html5QrcodeScannerEntrada = null;
-var html5QrcodeScannerSaida = null;
-var carrinhoSaida = [];
+var sessao = null; var dadosEstoque = null; var fotoData = ''; var fotoStream = null;
+var refreshInterval = null; var relatorioAtivo = false;
+var html5QrcodeScannerEntrada = null; var html5QrcodeScannerSaida = null; var carrinhoSaida = [];
 
 (function () {
   var s = localStorage.getItem(SESSION_KEY);
@@ -31,12 +22,10 @@ var carrinhoSaida = [];
 })();
 
 function toggleSenha() {
-  var input = document.getElementById('loginPass');
-  var icon = document.getElementById('eyeIcon');
+  var input = document.getElementById('loginPass'); var icon = document.getElementById('eyeIcon');
   if (input.type === 'password') { input.type = 'text'; icon.textContent = '🙈'; } else { input.type = 'password'; icon.textContent = '👁️'; }
 }
 
-// ── FUNÇÃO DE LOGIN (LGPD + HASH) ─────────────────
 async function fazerLogin() {
   var user = document.getElementById('loginUser').value.trim().toUpperCase();
   var pass = document.getElementById('loginPass').value.trim();
@@ -52,43 +41,25 @@ async function fazerLogin() {
 
   try {
     var senhaHash = await gerarHash(pass);
-
-    fetch(API_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
-      body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }),
-      redirect: 'follow' 
-    })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
+    fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }), redirect: 'follow' })
+    .then(function (r) { return r.json(); }).then(function (d) {
       if (d.status === 'ok') { 
         sessao = { nome: d.nome, nivel: d.nivel, senha: pass }; 
         localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); 
         esconderLogin(); iniciarApp(); 
-      } else { 
-        err.textContent = d.msg || 'Credenciais inválidas'; shakeLogin(); 
-      }
+      } else { err.textContent = d.msg || 'Credenciais inválidas'; shakeLogin(); }
     }).catch(function () {
       if (CREDS_OFFLINE[user] && CREDS_OFFLINE[user] === senhaHash) { 
         sessao = { nome: user, nivel: user === 'GESTOR' ? 'gestor' : 'funcionario', senha: pass }; 
-        localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); 
-        esconderLogin(); iniciarApp(); 
-      } else { 
-        err.textContent = 'Sem conexão e credenciais inválidas'; shakeLogin(); 
-      }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(sessao)); esconderLogin(); iniciarApp(); 
+      } else { err.textContent = 'Sem conexão e credenciais inválidas'; shakeLogin(); }
     }).finally(function () { btn.disabled = false; btn.textContent = 'Entrar'; });
-
-  } catch(e) {
-    err.textContent = 'Erro no sistema de segurança'; shakeLogin();
-    btn.disabled = false; btn.textContent = 'Entrar';
-  }
+  } catch(e) { err.textContent = 'Erro de segurança'; shakeLogin(); btn.disabled = false; btn.textContent = 'Entrar'; }
 }
 
 async function gerarHash(texto) {
-  const msgBuffer = new TextEncoder().encode(texto);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const msgBuffer = new TextEncoder().encode(texto); const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer)); return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function shakeLogin() { var c = document.querySelector('.login-card'); c.classList.add('shake'); setTimeout(function () { c.classList.remove('shake'); }, 500); }
@@ -117,9 +88,7 @@ function iniciarApp() {
   });
 }
 
-function loadSequence(steps, cb) {
-  var i = 0; function next() { if (i >= steps.length) { setTimeout(cb, 400); return; } document.getElementById('ldText').textContent = steps[i].t; document.getElementById('ldBarTop').style.width = steps[i].p + '%'; i++; setTimeout(next, 500); } next();
-}
+function loadSequence(steps, cb) { var i = 0; function next() { if (i >= steps.length) { setTimeout(cb, 400); return; } document.getElementById('ldText').textContent = steps[i].t; document.getElementById('ldBarTop').style.width = steps[i].p + '%'; i++; setTimeout(next, 500); } next(); }
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
@@ -128,9 +97,7 @@ function switchTab(tab) {
   document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
   
   if (tab === 'entrada') { if(document.getElementById('areaCameraEntrada').style.display === 'block') initFotoCamera(); } else { stopFotoCamera(); }
-  if (tab !== 'entrada') pararScannerEntrada();
-  if (tab !== 'saida') pararScannerSaida();
-  
+  if (tab !== 'entrada') pararScannerEntrada(); if (tab !== 'saida') pararScannerSaida();
   if (tab === 'saida' && dadosEstoque) { renderSaidaList(dadosEstoque.produtos); renderCarrinho(); }
   if (tab === 'auditoria' && dadosEstoque) { renderAuditoriaList(dadosEstoque.produtos); }
 }
@@ -162,11 +129,9 @@ function renderPainel(d) {
       var cls = 'critical'; var icon = '⚠️'; var badgeCls = 'vencido';
       if (a.tipo === 'ESTOQUE ZERO') { cls = 'estoque-zero'; icon = '🚫'; badgeCls = 'zero'; } else if (a.status === 'CRÍTICO') { cls = 'critical'; icon = '🔴'; badgeCls = 'critico'; } else if (a.status === 'ATENÇÃO') { cls = 'warning'; icon = '🟡'; badgeCls = 'atencao'; } else if (a.status === 'VENCIDO') { cls = 'critical'; icon = '❌'; badgeCls = 'vencido'; }
       ah += '<div class="alerta-card ' + cls + '"><div class="alerta-icon">' + icon + '</div><div class="alerta-info"><div class="alerta-nome">' + a.produto + '</div><div class="alerta-detail">' + a.marca + ' • ' + a.setor + ' • Qtd: ' + a.quantidade + '</div></div><span class="alerta-badge ' + badgeCls + '">' + a.tipo + '</span></div>';
-    });
-    alertList.innerHTML = ah;
+    }); alertList.innerHTML = ah;
   } else { alertSection.style.display = 'none'; }
-  renderProdutos(produtos);
-  document.getElementById('syncTime').textContent = d.timestamp ? 'Atualizado: ' + d.timestamp : '';
+  renderProdutos(produtos); document.getElementById('syncTime').textContent = d.timestamp ? 'Atualizado: ' + d.timestamp : '';
 }
 
 function renderProdutos(produtos) {
@@ -176,53 +141,52 @@ function renderProdutos(produtos) {
   produtos.forEach(function (p) {
     var statusCls = getStatusClass(p.status, p.quantidade); var icon = getStatusIcon(p.status, p.quantidade); var qtdCls = p.quantidade === 0 ? 'zero' : p.quantidade <= 5 ? 'low' : 'ok'; var statusLabel = p.quantidade === 0 ? 'SEM ESTOQUE' : p.status;
     html += '<div class="produto-card" onclick="abrirDetalhe(' + p.linha + ')"><div class="prod-icon ' + statusCls + '">' + icon + '</div><div class="prod-info"><div class="prod-nome">' + p.nome + '</div><div class="prod-meta">' + p.marca + ' • ' + p.setor + (p.lote ? ' • Lote: ' + p.lote : '') + '</div></div><div class="prod-right"><div class="prod-qtd ' + qtdCls + '">' + p.quantidade + ' ' + p.unidade + '</div><span class="prod-status ' + statusCls + '">' + statusLabel + '</span></div></div>';
-  });
-  el.innerHTML = html;
+  }); el.innerHTML = html;
 }
 function getStatusClass(status, qtd) { if (qtd === 0) return 'zero'; switch (status) { case 'VENCIDO': return 'vencido'; case 'CRÍTICO': return 'critico'; case 'ATENÇÃO': return 'atencao'; case 'MONITORAR': return 'monitorar'; default: return 'ok'; } }
 function getStatusIcon(status, qtd) { if (qtd === 0) return '🚫'; switch (status) { case 'VENCIDO': return '❌'; case 'CRÍTICO': return '🔴'; case 'ATENÇÃO': return '🟡'; case 'MONITORAR': return '🔵'; default: return '✅'; } }
 function filtrarProdutos() {
   if (!dadosEstoque) return; var termo = document.getElementById('searchInput').value.toLowerCase().trim();
   if (!termo) { renderProdutos(dadosEstoque.produtos); return; }
-  var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || p.lote.toLowerCase().indexOf(termo) > -1 || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); });
+  var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.lote && p.lote.toLowerCase().indexOf(termo) > -1) || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); });
   renderProdutos(filtrados);
 }
 
 // ══════════════════════════════════════════════════════════════
-//  LEITOR ULTRAWIDE (Horizontal Laser Scanner)
+//  LEITOR VERTICAL (BOLETO) & FLASH
 // ══════════════════════════════════════════════════════════════
-// ══════ CÂMERA DE ENTRADA ══════
+var isFlashOnEntrada = false;
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
-  
-  // Caixa de 280x85 cria a "fenda" com a máscara de compressão automática
   html5QrcodeScannerEntrada.start(
-  { facingMode: "environment" }, 
-  { 
-    fps: 15, 
-    qrbox: { width: 300, height: 85 }, // <-- Fenda fininha tipo App de Banco
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-  },
-// ... continua o seu function(decodedText) ...
-// ══════ CÂMERA DE SAÍDA ══════
-function iniciarScannerSaida() {
-  document.getElementById('scannerSaidaArea').style.display = 'block';
-  html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
-  
-  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 280, height: 85 } },
+    { facingMode: "environment" }, 
+    { fps: 15, qrbox: { width: 300, height: 85 }, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
     function(decodedText) {
-      pararScannerSaida(); // <-- FECHA A CÂMERA SOZINHO AQUI TAMBÉM
-      var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
-      if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); }
+      pararScannerEntrada();
+      document.getElementById('entCodigoBarras').value = decodedText;
+      buscarProdutoPorCodigo(decodedText);
       if(navigator.vibrate) navigator.vibrate(100);
-    }, function(err) {}
-  ).catch(function(err) { toast("Erro na câmara."); pararScannerSaida(); });
+    },
+    function(err) {}
+  ).catch(function(err) { toast("Erro na câmara."); pararScannerEntrada(); });
 }
 function pararScannerEntrada() {
-  if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; }).catch(function(){}); }
+  if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; isFlashOnEntrada = false; }).catch(function(){}); }
   document.getElementById('scannerEntradaArea').style.display = 'none';
+  var btn = document.getElementById('btnFlashEntrada'); if(btn) { btn.style.background = 'rgba(118,118,128,.15)'; btn.style.color = 'var(--text-primary)'; }
 }
+function toggleFlashEntrada() {
+  if (html5QrcodeScannerEntrada && html5QrcodeScannerEntrada.getState() === 2) { 
+    isFlashOnEntrada = !isFlashOnEntrada;
+    html5QrcodeScannerEntrada.applyVideoConstraints({ advanced: [{ torch: isFlashOnEntrada }] })
+    .then(function() {
+      var btn = document.getElementById('btnFlashEntrada');
+      if (isFlashOnEntrada) { btn.style.background = 'var(--blue)'; btn.style.color = '#fff'; } else { btn.style.background = 'rgba(118,118,128,.15)'; btn.style.color = 'var(--text-primary)'; }
+    }).catch(function(err) { toast("Flash não suportado neste aparelho."); isFlashOnEntrada = false; });
+  }
+}
+
 function buscarProdutoPorCodigo(codigo) {
   if (!dadosEstoque || !codigo) return;
   var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === codigo; });
@@ -233,23 +197,36 @@ function buscarProdutoPorCodigo(codigo) {
   }
 }
 
+var isFlashOnSaida = false;
 function iniciarScannerSaida() {
   document.getElementById('scannerSaidaArea').style.display = 'block';
   html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
-  toast('📱 Deite o telemóvel para escancear melhor!');
-
-  // Resolução gigante na horizontal (600x200) para criar o "Laser Ultrawide"
-  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 600, height: 200 } },
+  html5QrcodeScannerSaida.start(
+    { facingMode: "environment" }, 
+    { fps: 15, qrbox: { width: 300, height: 85 }, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
     function(decodedText) {
       pararScannerSaida();
       var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
       if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); }
-    }, function(err) {}
+      if(navigator.vibrate) navigator.vibrate(100);
+    }, 
+    function(err) {}
   ).catch(function(err) { toast("Erro na câmara."); pararScannerSaida(); });
 }
 function pararScannerSaida() {
-  if(html5QrcodeScannerSaida) { html5QrcodeScannerSaida.stop().then(function(){ html5QrcodeScannerSaida.clear(); html5QrcodeScannerSaida = null; }).catch(function(){}); }
+  if(html5QrcodeScannerSaida) { html5QrcodeScannerSaida.stop().then(function(){ html5QrcodeScannerSaida.clear(); html5QrcodeScannerSaida = null; isFlashOnSaida = false; }).catch(function(){}); }
   document.getElementById('scannerSaidaArea').style.display = 'none';
+  var btn = document.getElementById('btnFlashSaida'); if(btn) { btn.style.background = 'rgba(118,118,128,.15)'; btn.style.color = 'var(--text-primary)'; }
+}
+function toggleFlashSaida() {
+  if (html5QrcodeScannerSaida && html5QrcodeScannerSaida.getState() === 2) { 
+    isFlashOnSaida = !isFlashOnSaida;
+    html5QrcodeScannerSaida.applyVideoConstraints({ advanced: [{ torch: isFlashOnSaida }] })
+    .then(function() {
+      var btn = document.getElementById('btnFlashSaida');
+      if (isFlashOnSaida) { btn.style.background = 'var(--blue)'; btn.style.color = '#fff'; } else { btn.style.background = 'rgba(118,118,128,.15)'; btn.style.color = 'var(--text-primary)'; }
+    }).catch(function(err) { toast("Flash não suportado neste aparelho."); isFlashOnSaida = false; });
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -269,9 +246,7 @@ function abrirDetalhe(linha) {
 }
 function fecharDetalhe() { document.getElementById('detalheModal').classList.remove('show'); }
 
-function adicionarAoCarrinhoDetalhe(linha) {
-  fecharDetalhe(); adicionarAoCarrinho(linha); switchTab('saida');
-}
+function adicionarAoCarrinhoDetalhe(linha) { fecharDetalhe(); adicionarAoCarrinho(linha); switchTab('saida'); }
 
 function abrirEditar(linha) {
   if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function (x) { return x.linha === linha; }); if (!p) return; fecharDetalhe();
@@ -295,7 +270,7 @@ function confirmarExcluir(linha) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  CARRINHO DE SAÍDA EM LOTE
+//  CARRINHO DE SAÍDA EM LOTE E MOTIVOS
 // ══════════════════════════════════════════════════════════════
 function renderSaidaList(produtos) {
   var el = document.getElementById('saidaList');
@@ -305,8 +280,7 @@ function renderSaidaList(produtos) {
   var html = '';
   comEstoque.forEach(function (p) {
     html += '<div class="saida-card" onclick="adicionarAoCarrinho(' + p.linha + ')"><div class="saida-icon">📦</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><div class="saida-qtd">' + p.quantidade + ' ' + p.unidade + '</div><button class="saida-btn">+ Add</button></div>';
-  });
-  el.innerHTML = html;
+  }); el.innerHTML = html;
 }
 
 function filtrarSaida() {
@@ -317,26 +291,16 @@ function filtrarSaida() {
 }
 
 function adicionarAoCarrinho(linha) {
-  if (!dadosEstoque) return;
-  var p = dadosEstoque.produtos.find(function(x) { return x.linha === linha; });
-  if (!p) return;
+  if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function(x) { return x.linha === linha; }); if (!p) return;
   var itemExistente = carrinhoSaida.find(function(x) { return x.linha === linha; });
-  if (itemExistente) {
-    if (itemExistente.quantidade + 1 > p.quantidade) { toast('Estoque insuficiente!'); return; }
-    itemExistente.quantidade++;
-  } else {
-    if (p.quantidade < 1) { toast('Estoque zerado.'); return; }
-    carrinhoSaida.push({ linha: p.linha, nome: p.nome, quantidade: 1, max: p.quantidade, unidade: p.unidade });
-  }
-  toast(p.nome + ' adicionado ao carrinho!');
-  renderCarrinho();
+  if (itemExistente) { if (itemExistente.quantidade + 1 > p.quantidade) { toast('Estoque insuficiente!'); return; } itemExistente.quantidade++; } 
+  else { if (p.quantidade < 1) { toast('Estoque zerado.'); return; } carrinhoSaida.push({ linha: p.linha, nome: p.nome, quantidade: 1, max: p.quantidade, unidade: p.unidade }); }
+  toast(p.nome + ' adicionado ao carrinho!'); renderCarrinho();
 }
 
 function alterarQtdCarrinho(linha, delta) {
-  var item = carrinhoSaida.find(function(x) { return x.linha === linha; });
-  if (!item) return;
-  item.quantidade += delta;
-  if (item.quantidade > item.max) item.quantidade = item.max;
+  var item = carrinhoSaida.find(function(x) { return x.linha === linha; }); if (!item) return;
+  item.quantidade += delta; if (item.quantidade > item.max) item.quantidade = item.max;
   if (item.quantidade <= 0) carrinhoSaida = carrinhoSaida.filter(function(x) { return x.linha !== linha; });
   renderCarrinho();
 }
@@ -348,26 +312,39 @@ function renderCarrinho() {
   var h = '';
   carrinhoSaida.forEach(function(item) {
     h += '<div class="cart-item"><div class="cart-info"><strong>' + escapeHtml(item.nome) + '</strong><small>Estoque: ' + item.max + ' ' + item.unidade + '</small></div><div class="cart-controls"><button onclick="alterarQtdCarrinho(' + item.linha + ', -1)">-</button><span>' + item.quantidade + '</span><button onclick="alterarQtdCarrinho(' + item.linha + ', 1)">+</button></div></div>';
-  });
-  list.innerHTML = h;
+  }); list.innerHTML = h;
 }
 
 function confirmarSaidaLote() {
   if (carrinhoSaida.length === 0) return;
-  var btn = document.getElementById('btnConfirmarLote');
-  var motivoGeral = document.getElementById('loteMotivo').value.trim();
+  var btn = document.getElementById('btnConfirmarLote'); 
+  
+  // Captura a Categoria e a Observação
+  var motivoSelect = document.getElementById('loteMotivoSelect').value;
+  var motivoObs = document.getElementById('loteMotivoObs').value.trim();
+  
+  // Junta os dois de forma inteligente
+  var motivoFinal = motivoSelect;
+  if (motivoObs !== '') {
+    motivoFinal += ' - ' + motivoObs;
+  }
+  
   btn.disabled = true; btn.textContent = 'Enviando...';
-
-  var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoGeral }; });
+  var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
   var payload = { acao: 'saidaLote', colaborador: sessao.nome, nome: sessao.nome, itens: itensPayload };
 
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d.status === 'ok') {
-        showSuccess('📤', d.mensagem, ''); carrinhoSaida = []; document.getElementById('loteMotivo').value = ''; renderCarrinho(); syncDados();
-      } else { toast(d.msg || 'Erro na saída'); }
-    }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = '✅ Confirmar Saída'; });
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (d.status === 'ok') { 
+        showSuccess('📤', d.mensagem, ''); 
+        carrinhoSaida = []; 
+        document.getElementById('loteMotivoSelect').value = 'PEDIDO'; 
+        document.getElementById('loteMotivoObs').value = ''; 
+        renderCarrinho(); 
+        syncDados(); 
+      } 
+      else { toast(d.msg || 'Erro na saída'); }
+    }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = '✅ Confirmar Baixa Total'; });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -375,16 +352,11 @@ function confirmarSaidaLote() {
 // ══════════════════════════════════════════════════════════════
 function renderAuditoriaList(produtos) {
   var el = document.getElementById('auditoriaList');
-  if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível para auditoria</div></div>'; return; }
-  
+  if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível</div></div>'; return; }
   var html = '';
   produtos.forEach(function (p) {
-    html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + p.linha + ')">';
-    html += '<div class="saida-icon" style="background:var(--indigo); color:#fff;">🕵️</div>';
-    html += '<div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div>';
-    html += '<button class="saida-btn" style="background:var(--indigo);">Auditar</button></div>';
-  });
-  el.innerHTML = html;
+    html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + p.linha + ')"><div class="saida-icon" style="background:var(--indigo); color:#fff;">🕵️</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><button class="saida-btn" style="background:var(--indigo);">Auditar</button></div>';
+  }); el.innerHTML = html;
 }
 
 function filtrarAuditoria() {
@@ -396,86 +368,47 @@ function filtrarAuditoria() {
 
 function abrirAuditoriaModal(linha) {
   if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function(x) { return x.linha === linha; }); if (!p) return;
-  document.getElementById('auditoriaProdNome').textContent = p.nome;
-  document.getElementById('auditoriaProdSetor').textContent = p.marca + ' • ' + p.setor;
-  document.getElementById('auditoriaProdLinha').value = linha;
-  document.getElementById('auditoriaQtdFisica').value = '';
-  document.getElementById('auditoriaModal').classList.add('show');
+  document.getElementById('auditoriaProdNome').textContent = p.nome; document.getElementById('auditoriaProdSetor').textContent = p.marca + ' • ' + p.setor; document.getElementById('auditoriaProdLinha').value = linha; document.getElementById('auditoriaQtdFisica').value = ''; document.getElementById('auditoriaModal').classList.add('show');
 }
-
 function fecharAuditoria() { document.getElementById('auditoriaModal').classList.remove('show'); }
 
 function enviarAuditoria() {
-  var btn = document.getElementById('btnSalvarAuditoria');
-  var qtdStr = document.getElementById('auditoriaQtdFisica').value;
-  if (qtdStr === '') { toast('Informe a quantidade contada na prateleira'); return; }
-  
-  var qtd = parseFloat(qtdStr);
-  var linha = parseInt(document.getElementById('auditoriaProdLinha').value);
+  var btn = document.getElementById('btnSalvarAuditoria'); var qtdStr = document.getElementById('auditoriaQtdFisica').value;
+  if (qtdStr === '') { toast('Informe a quantidade'); return; }
+  var qtd = parseFloat(qtdStr); var linha = parseInt(document.getElementById('auditoriaProdLinha').value);
   btn.disabled = true; btn.textContent = 'Verificando...';
-
   var payload = { acao: 'auditoria', linha: linha, qtdFisica: qtd, nome: sessao.nome };
 
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d.status === 'ok') {
-        fecharAuditoria();
-        if (d.match) { showSuccess('✅', 'Tudo Certo!', d.msg); }
-        else { showSuccess('⚠️', 'Divergência Registada', 'Diferença de ' + d.diferenca + ' itens enviada para o Gestor.'); }
-      } else { toast(d.msg || 'Erro na auditoria'); }
+    .then(function (r) { return r.json(); }).then(function (d) {
+      if (d.status === 'ok') { fecharAuditoria(); if (d.match) { showSuccess('✅', 'Tudo Certo!', d.msg); } else { showSuccess('⚠️', 'Divergência', 'Diferença de ' + d.diferenca + ' itens enviada para o Gestor.'); } } 
+      else { toast(d.msg || 'Erro'); }
     }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
 }
 
 // ══════════════════════════════════════════════════════════════
-//  ENTRADA — FORMULÁRIO E CÂMARA (Oculta)
+//  ENTRADA — FORMULÁRIO E CÂMARA DE AVARIAS
 // ══════════════════════════════════════════════════════════════
 function enviarEntrada() {
   var produto = document.getElementById('entProduto').value.trim(); var qtd = document.getElementById('entQtd').value;
   if (!produto) { toast('Informe o nome do produto'); return; } if (!qtd || parseFloat(qtd) <= 0) { toast('Informe a quantidade'); return; }
   var btn = document.getElementById('btnEntrada'); btn.disabled = true; btn.textContent = 'Registando...';
-  var payload = {
-    acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value,
-    produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value,
-    validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(),
-    observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData
-  };
+  var payload = { acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value, produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value, validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(), observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData };
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
-    .then(function (r) { return r.json(); }).then(function (d) {
-      if (d.status === 'ok') { showSuccess('📦', d.mensagem, d.produto + ' — ' + d.quantidade + ' un'); limparFormEntrada(); syncDados(); } else { toast(d.msg || 'Erro'); }
-    }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Registar Entrada'; });
+    .then(function (r) { return r.json(); }).then(function (d) { if (d.status === 'ok') { showSuccess('📦', d.mensagem, d.produto + ' — ' + d.quantidade + ' un'); limparFormEntrada(); syncDados(); } else { toast(d.msg || 'Erro'); } }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Salvar Entrada'; });
 }
 function limparFormEntrada() {
   document.getElementById('entCodigoBarras').value = ''; document.getElementById('entSetor').value = ''; document.getElementById('entProduto').value = ''; document.getElementById('entMarca').value = ''; document.getElementById('entQtd').value = ''; document.getElementById('entUnidade').value = 'UN'; document.getElementById('entValidade').value = ''; document.getElementById('entLote').value = ''; document.getElementById('entObs').value = ''; resetarFoto();
-  // Esconde a câmara novamente
-  document.getElementById('areaCameraEntrada').style.display = 'none';
-  document.getElementById('btnRevelarCamera').style.display = 'flex';
+  document.getElementById('areaCameraEntrada').style.display = 'none'; document.getElementById('btnRevelarCamera').style.display = 'flex';
 }
-
-function mostrarCameraEntrada() {
-  document.getElementById('btnRevelarCamera').style.display = 'none';
-  document.getElementById('areaCameraEntrada').style.display = 'block';
-  initFotoCamera();
-}
-
-function initFotoCamera() {
-  if (fotoStream) return; var video = document.getElementById('fotoVideo'); if (!video) return;
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 480, height: 480 } }).then(function (s) { fotoStream = s; video.srcObject = s; }).catch(function () { });
-}
-function capturarFoto() {
-  var v = document.getElementById('fotoVideo'); var c = document.getElementById('fotoCanvas'); c.width = 480; c.height = 480; c.getContext('2d').drawImage(v, 0, 0, 480, 480);
-  fotoData = c.toDataURL('image/jpeg', 0.5); v.style.display = 'none'; c.style.display = 'block'; document.getElementById('btnFotoCapture').style.display = 'none'; document.getElementById('btnFotoReset').style.display = ''; document.getElementById('fotoOk').style.display = 'block';
-}
-function resetarFoto() {
-  var v = document.getElementById('fotoVideo'); var c = document.getElementById('fotoCanvas');
-  if (v) v.style.display = 'block'; if (c) c.style.display = 'none';
-  var btnCap = document.getElementById('btnFotoCapture'); var btnRst = document.getElementById('btnFotoReset'); var okEl = document.getElementById('fotoOk');
-  if (btnCap) btnCap.style.display = ''; if (btnRst) btnRst.style.display = 'none'; if (okEl) okEl.style.display = 'none'; fotoData = '';
-}
+function mostrarCameraEntrada() { document.getElementById('btnRevelarCamera').style.display = 'none'; document.getElementById('areaCameraEntrada').style.display = 'block'; initFotoCamera(); }
+function initFotoCamera() { if (fotoStream) return; var video = document.getElementById('fotoVideo'); if (!video) return; navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 480, height: 480 } }).then(function (s) { fotoStream = s; video.srcObject = s; }).catch(function () { }); }
+function capturarFoto() { var v = document.getElementById('fotoVideo'); var c = document.getElementById('fotoCanvas'); c.width = 480; c.height = 480; c.getContext('2d').drawImage(v, 0, 0, 480, 480); fotoData = c.toDataURL('image/jpeg', 0.5); v.style.display = 'none'; c.style.display = 'block'; document.getElementById('btnFotoCapture').style.display = 'none'; document.getElementById('btnFotoReset').style.display = ''; document.getElementById('fotoOk').style.display = 'block'; }
+function resetarFoto() { var v = document.getElementById('fotoVideo'); var c = document.getElementById('fotoCanvas'); if (v) v.style.display = 'block'; if (c) c.style.display = 'none'; var btnCap = document.getElementById('btnFotoCapture'); var btnRst = document.getElementById('btnFotoReset'); var okEl = document.getElementById('fotoOk'); if (btnCap) btnCap.style.display = ''; if (btnRst) btnRst.style.display = 'none'; if (okEl) okEl.style.display = 'none'; fotoData = ''; }
 function stopFotoCamera() { if (fotoStream) { fotoStream.getTracks().forEach(function (t) { t.stop(); }); fotoStream = null; } }
 
 // ══════════════════════════════════════════════════════════════
-//  RELATÓRIO PARA IMPRESSÃO (Otimizado)
+//  RELATÓRIO PARA IMPRESSÃO
 // ══════════════════════════════════════════════════════════════
 function toggleRelatorio() {
   if (relatorioAtivo) { fecharRelatorio(); return; }
@@ -488,23 +421,16 @@ function toggleRelatorio() {
       if (cache) { dadosEstoque = JSON.parse(cache); if (dadosEstoque && dadosEstoque.produtos && dadosEstoque.produtos.length > 0) gerarRelatorio(); else mostrarRelatorioVazio(); } else mostrarRelatorioVazio();
     }).finally(function () { if (sw) sw.classList.remove('loading'); });
 }
-
 function mostrarRelatorioVazio() {
   relatorioAtivo = true; var sw = document.getElementById('switchRelatorio'); if (sw) sw.classList.add('on');
   var overlay = document.getElementById('relatorioOverlay'); if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
-  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn close" onclick="fecharRelatorio()"><i class="fas fa-times"></i> Fechar</button></div><div class="rel-container"><div class="rel-header"><div class="rel-logo">ESTOQUE DIGITAL</div><div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div></div><div class="rel-empty"><div class="rel-empty-icon">📋</div><div class="rel-empty-title">Sem dados na planilha</div></div></div>';
-  overlay.classList.add('show');
+  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn close" onclick="fecharRelatorio()"><i class="fas fa-times"></i> Fechar</button></div><div class="rel-container"><div class="rel-header"><div class="rel-logo">ESTOQUE DIGITAL</div><div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div></div><div class="rel-empty"><div class="rel-empty-icon">📋</div><div class="rel-empty-title">Sem dados na planilha</div></div></div>'; overlay.classList.add('show');
 }
-
 function gerarRelatorio() {
   relatorioAtivo = true; var sw = document.getElementById('switchRelatorio'); if (sw) sw.classList.add('on');
   var produtos = dadosEstoque.produtos; var hoje = new Date(); var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear(); var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
   var vencidos = []; var criticos = []; var atencao = []; var monitorar = []; var zerados = []; var todos = []; var porSetor = {};
-  produtos.forEach(function (p) {
-    todos.push(p); var setor = p.setor || 'SEM SETOR'; if (!porSetor[setor]) porSetor[setor] = []; porSetor[setor].push(p);
-    if (p.quantidade === 0) zerados.push(p);
-    if (p.status === 'VENCIDO') vencidos.push(p); else if (p.status === 'CRÍTICO') criticos.push(p); else if (p.status === 'ATENÇÃO') atencao.push(p); else if (p.status === 'MONITORAR') monitorar.push(p);
-  });
+  produtos.forEach(function (p) { todos.push(p); var setor = p.setor || 'SEM SETOR'; if (!porSetor[setor]) porSetor[setor] = []; porSetor[setor].push(p); if (p.quantidade === 0) zerados.push(p); if (p.status === 'VENCIDO') vencidos.push(p); else if (p.status === 'CRÍTICO') criticos.push(p); else if (p.status === 'ATENÇÃO') atencao.push(p); else if (p.status === 'MONITORAR') monitorar.push(p); });
   function sortByDias(a, b) { var da = (a.diasVencer !== '' && a.diasVencer !== null && a.diasVencer !== undefined) ? a.diasVencer : 9999; var db = (b.diasVencer !== '' && b.diasVencer !== null && b.diasVencer !== undefined) ? b.diasVencer : 9999; return da - db; }
   vencidos.sort(sortByDias); criticos.sort(sortByDias); atencao.sort(sortByDias); monitorar.sort(sortByDias);
 
@@ -514,12 +440,7 @@ function gerarRelatorio() {
   if (criticos.length > 0) html += buildRelSection('🔴 Produtos Críticos — Vencem em até 7 dias', criticos, 'critico');
   if (atencao.length > 0) html += buildRelSection('🟡 Produtos em Atenção — Vencem em até 30 dias', atencao, 'atencao');
   if (monitorar.length > 0) html += buildRelSection('🔵 Produtos para Monitorar — Vencem em até 60 dias', monitorar, 'monitorar');
-  if (zerados.length > 0) {
-    html += '<div class="rel-section"><div class="rel-section-title zero">🚫 Estoque Zerado</div>';
-    var zeradosPorSetor = {}; zerados.forEach(function (p) { var s = p.setor || 'SEM SETOR'; if (!zeradosPorSetor[s]) zeradosPorSetor[s] = []; zeradosPorSetor[s].push(p); });
-    Object.keys(zeradosPorSetor).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + '</div>' + buildRelTable(zeradosPorSetor[setor], false) + '</div>'; });
-    html += '</div>';
-  }
+  if (zerados.length > 0) { html += '<div class="rel-section"><div class="rel-section-title zero">🚫 Estoque Zerado</div>'; var zeradosPorSetor = {}; zerados.forEach(function (p) { var s = p.setor || 'SEM SETOR'; if (!zeradosPorSetor[s]) zeradosPorSetor[s] = []; zeradosPorSetor[s].push(p); }); Object.keys(zeradosPorSetor).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + '</div>' + buildRelTable(zeradosPorSetor[setor], false) + '</div>'; }); html += '</div>'; }
   html += '<div class="rel-section"><div class="rel-section-title all">📦 Inventário Completo por Setor</div>';
   Object.keys(porSetor).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + ' <span class="rel-setor-count">(' + porSetor[setor].length + ' produtos)</span></div>' + buildRelTable(porSetor[setor], true) + '</div>'; });
   html += '</div><div class="rel-footer">Estoque Digital — Grupo Carlos Vaz · ' + dataStr + '</div></div>';
@@ -528,20 +449,8 @@ function gerarRelatorio() {
   overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()"><i class="fas fa-print"></i> Imprimir</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()"><i class="fas fa-times"></i> Fechar</button></div>' + html;
   overlay.classList.add('show'); overlay.scrollTop = 0;
 }
-function buildRelSection(title, items, cls) {
-  var html = '<div class="rel-section"><div class="rel-section-title ' + cls + '">' + title + '</div>';
-  var grouped = {}; items.forEach(function (p) { var s = p.setor || 'SEM SETOR'; if (!grouped[s]) grouped[s] = []; grouped[s].push(p); });
-  Object.keys(grouped).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + '</div>' + buildRelTable(grouped[setor], true) + '</div>'; });
-  return html + '</div>';
-}
-function buildRelTable(items, showDias) {
-  var html = '<table class="rel-table"><thead><tr><th>Produto</th><th>Marca</th><th>Qtd</th><th>Un</th><th>Validade</th>' + (showDias ? '<th>Dias</th>' : '') + '<th>Status</th><th>Lote</th></tr></thead><tbody>';
-  items.forEach(function (p) {
-    var statusCls = getStatusClass(p.status, p.quantidade); var diasTxt = '—'; if (p.diasVencer !== '' && p.diasVencer !== null && p.diasVencer !== undefined) diasTxt = p.diasVencer + 'd';
-    html += '<tr><td class="rel-td-nome">' + escapeHtml(p.nome) + '</td><td>' + escapeHtml(p.marca) + '</td><td class="rel-td-num ' + (p.quantidade === 0 ? 'zero' : '') + '">' + p.quantidade + '</td><td>' + escapeHtml(p.unidade) + '</td><td>' + escapeHtml(p.validade || '—') + '</td>' + (showDias ? '<td class="rel-td-num rel-dias-' + statusCls + '">' + diasTxt + '</td>' : '') + '<td><span class="rel-status-badge ' + statusCls + '">' + (p.quantidade === 0 ? 'SEM ESTOQUE' : (p.status || 'OK')) + '</span></td><td>' + escapeHtml(p.lote || '—') + '</td></tr>';
-  });
-  return html + '</tbody></table>';
-}
+function buildRelSection(title, items, cls) { var html = '<div class="rel-section"><div class="rel-section-title ' + cls + '">' + title + '</div>'; var grouped = {}; items.forEach(function (p) { var s = p.setor || 'SEM SETOR'; if (!grouped[s]) grouped[s] = []; grouped[s].push(p); }); Object.keys(grouped).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + '</div>' + buildRelTable(grouped[setor], true) + '</div>'; }); return html + '</div>'; }
+function buildRelTable(items, showDias) { var html = '<table class="rel-table"><thead><tr><th>Produto</th><th>Marca</th><th>Qtd</th><th>Un</th><th>Validade</th>' + (showDias ? '<th>Dias</th>' : '') + '<th>Status</th><th>Lote</th></tr></thead><tbody>'; items.forEach(function (p) { var statusCls = getStatusClass(p.status, p.quantidade); var diasTxt = '—'; if (p.diasVencer !== '' && p.diasVencer !== null && p.diasVencer !== undefined) diasTxt = p.diasVencer + 'd'; html += '<tr><td class="rel-td-nome">' + escapeHtml(p.nome) + '</td><td>' + escapeHtml(p.marca) + '</td><td class="rel-td-num ' + (p.quantidade === 0 ? 'zero' : '') + '">' + p.quantidade + '</td><td>' + escapeHtml(p.unidade) + '</td><td>' + escapeHtml(p.validade || '—') + '</td>' + (showDias ? '<td class="rel-td-num rel-dias-' + statusCls + '">' + diasTxt + '</td>' : '') + '<td><span class="rel-status-badge ' + statusCls + '">' + (p.quantidade === 0 ? 'SEM ESTOQUE' : (p.status || 'OK')) + '</span></td><td>' + escapeHtml(p.lote || '—') + '</td></tr>'; }); return html + '</tbody></table>'; }
 function buildRelSummaryCard(label, value, color) { return '<div class="rel-stat-card ' + color + '"><div class="rel-stat-val">' + value + '</div><div class="rel-stat-lbl">' + label + '</div></div>'; }
 function imprimirRelatorio() { setTimeout(function () { window.print(); }, 300); }
 function fecharRelatorio() { relatorioAtivo = false; var sw = document.getElementById('switchRelatorio'); if (sw) sw.classList.remove('on'); var overlay = document.getElementById('relatorioOverlay'); if (overlay) overlay.classList.remove('show'); }
@@ -553,42 +462,15 @@ function showSuccess(icon, msg, detail) { document.getElementById('successIcon')
 function toast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 3500); }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-// ══════════════════════════════════════════════════════════════
-//  TOOLTIPS — Balões de Dúvida (?)
-// ══════════════════════════════════════════════════════════════
 (function() {
   var tooltipAtivo = null;
-
   document.addEventListener('click', function(e) {
     var icon = e.target.closest('.help-icon');
-
-    // Se clicou fora, fecha o tooltip aberto
-    if (!icon) {
-      if (tooltipAtivo) { tooltipAtivo.remove(); tooltipAtivo = null; }
-      return;
-    }
-
-    // Se clicou no mesmo, fecha
+    if (!icon) { if (tooltipAtivo) { tooltipAtivo.remove(); tooltipAtivo = null; } return; }
     if (tooltipAtivo) { tooltipAtivo.remove(); tooltipAtivo = null; }
-
-    var texto = icon.getAttribute('data-tooltip');
-    if (!texto) return;
-
-    var tip = document.createElement('div');
-    tip.className = 'tooltip-balloon';
-    tip.textContent = texto;
-    document.body.appendChild(tip);
-
-    // Posicionar o balão
-    var rect = icon.getBoundingClientRect();
-    tip.style.top = (rect.bottom + 10 + window.scrollY) + 'px';
-    tip.style.left = Math.max(12, Math.min(rect.left + rect.width / 2 - 140, window.innerWidth - 292)) + 'px';
-
-    tooltipAtivo = tip;
-
-    // Fecha sozinho após 5 segundos
-    setTimeout(function() {
-      if (tooltipAtivo === tip) { tip.remove(); tooltipAtivo = null; }
-    }, 5000);
+    var texto = icon.getAttribute('data-tooltip'); if (!texto) return;
+    var tip = document.createElement('div'); tip.className = 'tooltip-balloon'; tip.textContent = texto; document.body.appendChild(tip);
+    var rect = icon.getBoundingClientRect(); tip.style.top = (rect.bottom + 10 + window.scrollY) + 'px'; tip.style.left = Math.max(12, Math.min(rect.left + rect.width / 2 - 140, window.innerWidth - 292)) + 'px';
+    tooltipAtivo = tip; setTimeout(function() { if (tooltipAtivo === tip) { tip.remove(); tooltipAtivo = null; } }, 5000);
   });
 })();
