@@ -9,7 +9,6 @@
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.json">
 <title>Estoque Digital — CRV/LAS</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23000'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%230a84ff' font-family='Arial' font-weight='900' font-size='40'%3E📦%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <link rel="stylesheet" href="style.css">
@@ -36,14 +35,15 @@
     </select>
     <div style="position:relative; margin-bottom:14px;">
       <input type="password" id="loginPass" class="login-field" placeholder="Sua senha" autocomplete="off" style="padding-right:48px; margin-bottom:0;">
-      <button type="button" onclick="toggleSenha()" id="eyeBtn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.1rem; color:rgba(235,235,245,.3);"><span id="eyeIcon">👁️</span></button>
+      <button type="button" onclick="toggleSenha()" id="eyeBtn" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.2rem; color:rgba(235,235,245,.4); z-index:10; padding:10px;"><span id="eyeIcon">👁️</span></button>
     </div>
+    
     <div style="margin-bottom: 16px; text-align: left; display: flex; align-items: flex-start; gap: 8px; padding: 0 4px;">
-  <input type="checkbox" id="lgpdCheck" style="margin-top: 3px; width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer;">
-  <label for="lgpdCheck" style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; cursor: pointer;">
-    Declaro que li e concordo com a recolha de dados estritamente para fins laborais e de acesso ao sistema, conforme a <strong>LGPD</strong>.
-  </label>
-</div>
+      <input type="checkbox" id="lgpdCheck" style="margin-top: 3px; width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer;">
+      <label for="lgpdCheck" style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; cursor: pointer;">
+        Declaro que li e concordo com a recolha de dados estritamente para fins laborais e de acesso ao sistema, conforme a <strong>LGPD</strong>.
+      </label>
+    </div>
     <button class="login-btn" id="loginBtn" onclick="fazerLogin()">Entrar</button>
     <div class="login-error" id="loginError"></div>
   </div>
@@ -52,7 +52,7 @@
 <!-- ══════════════ LOADING ══════════════ -->
 <div id="ldScreen" class="hidden">
   <div class="ld-spinner"></div>
-  <div class="ld-text" id="ldText">Sincronizando...</div>
+  <div class="ld-text" id="ldText">A Sincronizar...</div>
 </div>
 <div id="ldBarTop"></div>
 
@@ -102,35 +102,40 @@
         <div id="alertasList"></div>
       </div>
 
-      <div class="section-label">Produtos</div>
-      <div class="search-wrap">
-        <input type="text" id="searchInput" class="search-field" placeholder="Buscar produto..." oninput="filtrarProdutos()">
+      <div class="section-label">Base de Dados</div>
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="searchInput" class="ios-input-full search-icon-input" placeholder="Buscar produto..." oninput="filtrarProdutos()">
+        </div>
       </div>
-      <div id="produtosList"><p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando...</p></div>
+      
+      <div id="produtosList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
       <p class="sync-time" id="syncTime"></p>
     </div>
 
     <!-- ══════ TAB: ENTRADA ══════ -->
     <div class="tab-content" id="contentEntrada">
       <div class="section-label">Nova Entrada de Mercadoria</div>
-      <div class="form-card">
+      
+      <div class="ios-card">
+        <!-- Código de Barras -->
+        <div class="ios-card-row" style="flex-direction:column; align-items:stretch;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="ios-row-title">Código de Barras <span class="help-icon" data-tooltip="Bipe para preencher os dados automaticamente ou para vincular este código a um produto novo.">?</span></div>
+            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button" style="padding:6px 12px; font-size:.75rem;">📷 Bipar</button>
+          </div>
+          <input type="text" id="entCodigoBarras" class="ios-input-full" placeholder="Leia o código ou digite" onblur="buscarProdutoPorCodigo(this.value)" style="margin-top:8px;">
+        </div>
         
-        <div class="form-group">
-          <!-- TOOLTIP ADICIONADO AQUI -->
-          <label class="form-label">Código de Barras <span class="help-icon" data-tooltip="Bipe para preencher os dados automaticamente ou para vincular este código a um produto novo.">?</span></label>
-          <div style="display:flex; gap:8px;">
-            <input type="text" id="entCodigoBarras" class="form-field" placeholder="Leia o código" onblur="buscarProdutoPorCodigo(this.value)">
-            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button">📷 Scanner</button>
-          </div>
-          <div id="scannerEntradaArea" style="display:none; margin-top:12px;">
-            <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-            <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
-          </div>
+        <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
+          <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+          <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Setor</label>
-          <select id="entSetor" class="form-field">
+        <!-- Setor -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Setor</div>
+          <select id="entSetor" class="ios-input">
             <option value="">Selecione</option>
             <option value="EDUCAÇÃO">Educação</option>
             <option value="SAÚDE">Saúde</option>
@@ -143,50 +148,81 @@
           </select>
         </div>
 
-        <div class="form-group"><label class="form-label">Produto *</label><input type="text" id="entProduto" class="form-field" placeholder="Nome"></div>
-        <div class="form-group"><label class="form-label">Marca</label><input type="text" id="entMarca" class="form-field" placeholder="Marca"></div>
-
-        <div class="form-row">
-          <div class="form-group"><label class="form-label">Quantidade *</label><input type="number" id="entQtd" class="form-field" placeholder="0"></div>
-          <div class="form-group"><label class="form-label">Unidade</label><select id="entUnidade" class="form-field"><option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option></select></div>
+        <!-- Produto -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Produto <span style="color:var(--red);">*</span></div>
+          <input type="text" id="entProduto" class="ios-input" placeholder="Nome do item">
         </div>
 
-        <div class="form-row">
-          <div class="form-group"><label class="form-label">Validade</label><input type="date" id="entValidade" class="form-field"></div>
-          <div class="form-group"><label class="form-label">Lote</label><input type="text" id="entLote" class="form-field" placeholder="Lote"></div>
+        <!-- Marca -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Marca</div>
+          <input type="text" id="entMarca" class="ios-input" placeholder="Opcional">
         </div>
 
-        <div class="form-group"><label class="form-label">Observações</label><input type="text" id="entObs" class="form-field" placeholder="Opcional"></div>
-
-        <div class="form-group">
-          <!-- TOOLTIP ADICIONADO AQUI -->
-          <label class="form-label">Foto de Avaria / Identificação <span class="help-icon" data-tooltip="Use a câmara apenas se o produto não tiver código de barras ou se a caixa chegou rasgada/danificada.">?</span></label>
-          <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; margin-bottom: 10px; border: 1px dashed rgba(255,255,255,0.2);">📷 Abrir Câmara (Opcional)</button>
-          
-          <div class="foto-area" id="areaCameraEntrada" style="display:none;">
-            <video id="fotoVideo" autoplay playsinline style="width:100%; max-width:200px; border-radius:12px;"></video>
-            <canvas id="fotoCanvas" style="display:none;"></canvas>
-            <div class="foto-actions" style="margin-top:10px;">
-              <button type="button" class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Tirar Foto</button>
-              <button type="button" class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none;">🔄 Refazer</button>
-            </div>
-            <div class="selfie-ok" id="fotoOk" style="display:none; color:var(--green); margin-top:8px; font-weight:600;">✅ Foto Registrada</div>
-          </div>
+        <!-- Quantidade -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div>
+          <input type="number" id="entQtd" class="ios-input" placeholder="0">
         </div>
 
-        <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Salvar Entrada</button>
+        <!-- Unidade -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Unidade</div>
+          <select id="entUnidade" class="ios-input">
+            <option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
+          </select>
+        </div>
+
+        <!-- Validade -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Validade</div>
+          <input type="date" id="entValidade" class="ios-input">
+        </div>
+
+        <!-- Lote -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Lote</div>
+          <input type="text" id="entLote" class="ios-input" placeholder="Ref/Lote">
+        </div>
+
+        <!-- Observações -->
+        <div class="ios-card-row">
+          <div class="ios-row-title">Observações</div>
+          <input type="text" id="entObs" class="ios-input" placeholder="Opcional">
+        </div>
       </div>
+
+      <!-- Câmera Avaria (Standalone Card) -->
+      <div class="section-label">Avaria / Identificação visual <span class="help-icon" data-tooltip="Use a câmara apenas se o produto não tiver código de barras ou se a caixa chegou rasgada/danificada.">?</span></div>
+      <div class="ios-card" style="padding:16px;">
+        <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; border: 1px dashed rgba(255,255,255,0.2); background:transparent;">📷 Adicionar Foto (Opcional)</button>
+        
+        <div class="foto-area" id="areaCameraEntrada" style="display:none; margin-top:12px;">
+          <video id="fotoVideo" autoplay playsinline style="width:100%; max-width:200px; border-radius:12px;"></video>
+          <canvas id="fotoCanvas" style="display:none;"></canvas>
+          <div class="foto-actions" style="margin-top:10px;">
+            <button type="button" class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Capturar</button>
+            <button type="button" class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none;">🔄 Refazer</button>
+          </div>
+          <div class="selfie-ok" id="fotoOk" style="display:none; color:var(--green); margin-top:8px; font-weight:600;">✅ Foto Registrada</div>
+        </div>
+      </div>
+
+      <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Salvar Entrada</button>
     </div>
 
     <!-- ══════ TAB: SAÍDA (CARRINHO) ══════ -->
     <div class="tab-content" id="contentSaida">
-      <!-- TOOLTIP ADICIONADO AQUI -->
       <div class="section-label">Saída em Lote (Carrinho) <span class="help-icon" data-tooltip="Vá bipando vários itens diferentes. No final, clique em confirmar para dar baixa em todos de uma vez na carrinha.">?</span></div>
 
-      <div class="search-wrap" style="display:flex; gap:8px;">
-        <input type="text" id="saidaSearch" class="search-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()">
-        <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button">📷 Bipar</button>
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="saidaSearch" class="ios-input-full search-icon-input" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()">
+          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="margin-left:12px; flex-shrink:0;">📷 Bipar</button>
+        </div>
       </div>
+
       <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
         <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
         <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
@@ -196,53 +232,54 @@
         <div class="section-label" style="margin-top:0;">🛒 Itens Selecionados (<span id="cartCount">0</span>)</div>
         <div id="cartList"></div>
         <div style="margin-top:16px;">
-          <input type="text" id="loteMotivo" class="form-field" placeholder="Motivo da Saída" style="margin-bottom:12px;">
+          <input type="text" id="loteMotivo" class="form-field" placeholder="Motivo/Destino da Saída" style="margin-bottom:12px; background:rgba(0,0,0,.4);">
           <button class="submit-btn" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
       </div>
 
-      <div class="section-label">Estoque (Clique para adicionar)</div>
+      <div class="section-label">Estoque Atual (Clique para adicionar)</div>
       <div id="saidaList"></div>
     </div>
 
-    <!-- ══════ TAB: AUDITORIA (CONFERÊNCIA CEGA) ══════ -->
+    <!-- ══════ TAB: AUDITORIA ══════ -->
     <div class="tab-content" id="contentAuditoria">
-      <!-- TOOLTIP ADICIONADO AQUI -->
       <div class="section-label">Conferência Cega <span class="help-icon" data-tooltip="O sistema esconde a quantidade esperada. Vá até à prateleira, conte com atenção e digite o valor real.">?</span></div>
       <p style="color:var(--text-tertiary); font-size:0.75rem; margin-bottom:16px; padding:0 4px;">Conte os itens na prateleira e digite o valor real. O sistema não mostrará o estoque atual para garantir precisão.</p>
       
-      <div class="search-wrap">
-        <input type="text" id="auditoriaSearch" class="search-field" placeholder="Buscar produto para auditar..." oninput="filtrarAuditoria()">
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="auditoriaSearch" class="ios-input-full search-icon-input" placeholder="Buscar produto para auditar..." oninput="filtrarAuditoria()">
+        </div>
       </div>
       
       <div id="auditoriaList">
-        <p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando produtos...</p>
+        <p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p>
       </div>
     </div>
 
   </div>
 </div>
 
-<!-- ══════════════ MODAL: CONFERÊNCIA ══════════════ -->
+<!-- ══════════════ MODALS ══════════════ -->
 <div class="modal-full" id="auditoriaModal" style="z-index:6500;">
   <div class="modal-bar"><h2>🕵️ Auditar Item</h2><button class="modal-close" onclick="fecharAuditoria()">✕</button></div>
   <div class="modal-body">
-    <div class="form-card" style="text-align:center;">
+    <div class="ios-card" style="padding:28px 22px; text-align:center;">
       <p style="color:var(--text-secondary); font-size:.9rem;" id="auditoriaProdSetor"></p>
       <p style="color:var(--text-primary); font-size:1.2rem; font-weight:700; margin:10px 0;" id="auditoriaProdNome"></p>
       <input type="hidden" id="auditoriaProdLinha">
       
-      <div class="form-group" style="margin-top:24px;">
-        <label class="form-label">Quantidade Contada na Prateleira</label>
-        <input type="number" id="auditoriaQtdFisica" class="form-field" placeholder="0" style="text-align:center; font-size:1.5rem; font-weight:800; color:var(--blue);">
+      <div style="margin-top:24px; padding-top:20px; border-top:.5px solid var(--border);">
+        <label class="section-label" style="display:block; text-align:center; margin-bottom:12px;">Quantidade Real na Prateleira</label>
+        <input type="number" id="auditoriaQtdFisica" class="ios-input-full" placeholder="0" style="text-align:center; font-size:2rem; font-weight:800; color:var(--blue); background:rgba(0,0,0,.2); border-radius:12px; padding:12px;">
       </div>
       
-      <button class="submit-btn" id="btnSalvarAuditoria" onclick="enviarAuditoria()" style="background:var(--indigo);">Verificar Divergência</button>
+      <button class="submit-btn" id="btnSalvarAuditoria" onclick="enviarAuditoria()" style="background:var(--indigo); margin-top:24px;">Verificar Divergência</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════ OUTROS MODALS ══════════════ -->
+<!-- Outros Modals originais intocados estruturalmente para não quebrar o app.js -->
 <div class="modal-full" id="detalheModal">
   <div class="modal-bar"><h2>📋 Detalhes</h2><button class="modal-close" onclick="fecharDetalhe()">✕</button></div>
   <div class="modal-body" id="detalheBody"></div>
@@ -261,7 +298,6 @@
 <div id="relatorioOverlay" class="relatorio-overlay"></div>
 <div class="toast" id="toast"></div>
 
-<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(function(){});</script>
 <script src="app.js"></script>
 </body>
 </html>
