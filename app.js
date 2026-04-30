@@ -197,7 +197,14 @@ function iniciarScannerEntrada() {
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
   
   // Caixa de 280x85 cria a "fenda" com a máscara de compressão automática
-  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 280, height: 85 } },
+  html5QrcodeScannerEntrada.start(
+  { facingMode: "environment" }, 
+  { 
+    fps: 15, 
+    qrbox: { width: 320, height: 140 },
+    aspectRatio: 1.777778,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+  },
     function(decodedText) {
       pararScannerEntrada(); // <-- ISSO AQUI JÁ FECHA A CÂMERA SOZINHO NA HORA DO BIPE!
       document.getElementById('entCodigoBarras').value = decodedText;
