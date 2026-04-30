@@ -202,7 +202,7 @@ function filtrarProdutos() {
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
-  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 20, qrbox: {width: 300, height: 250} },
+  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 320, height: 100 } },
     function(decodedText) {
       pararScannerEntrada();
       document.getElementById('entCodigoBarras').value = decodedText;
