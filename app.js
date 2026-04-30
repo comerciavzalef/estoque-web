@@ -540,3 +540,43 @@ function fecharRelatorio() { relatorioAtivo = false; var sw = document.getElemen
 function showSuccess(icon, msg, detail) { document.getElementById('successIcon').textContent = icon; document.getElementById('successMsg').textContent = msg; document.getElementById('successDetail').textContent = detail || ''; var ov = document.getElementById('successOverlay'); ov.classList.add('show'); setTimeout(function () { ov.classList.remove('show'); }, 3000); }
 function toast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 3500); }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// ══════════════════════════════════════════════════════════════
+//  TOOLTIPS — Balões de Dúvida (?)
+// ══════════════════════════════════════════════════════════════
+(function() {
+  var tooltipAtivo = null;
+
+  document.addEventListener('click', function(e) {
+    var icon = e.target.closest('.help-icon');
+
+    // Se clicou fora, fecha o tooltip aberto
+    if (!icon) {
+      if (tooltipAtivo) { tooltipAtivo.remove(); tooltipAtivo = null; }
+      return;
+    }
+
+    // Se clicou no mesmo, fecha
+    if (tooltipAtivo) { tooltipAtivo.remove(); tooltipAtivo = null; }
+
+    var texto = icon.getAttribute('data-tooltip');
+    if (!texto) return;
+
+    var tip = document.createElement('div');
+    tip.className = 'tooltip-balloon';
+    tip.textContent = texto;
+    document.body.appendChild(tip);
+
+    // Posicionar o balão
+    var rect = icon.getBoundingClientRect();
+    tip.style.top = (rect.bottom + 10 + window.scrollY) + 'px';
+    tip.style.left = Math.max(12, Math.min(rect.left + rect.width / 2 - 140, window.innerWidth - 292)) + 'px';
+
+    tooltipAtivo = tip;
+
+    // Fecha sozinho após 5 segundos
+    setTimeout(function() {
+      if (tooltipAtivo === tip) { tip.remove(); tooltipAtivo = null; }
+    }, 5000);
+  });
+})();
