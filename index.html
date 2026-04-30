@@ -129,8 +129,15 @@
         
         <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
           <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-          <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
-        </div>
+          <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
+  <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+  
+  <!-- Novos Botões: Flash e Parar -->
+  <div style="display:flex; gap:10px; margin-top:10px;">
+    <button class="cam-btn" style="flex:1; justify-content:center; background:rgba(118,118,128,.15);" onclick="toggleFlashEntrada()" id="btnFlashEntrada" type="button">🔦 Flash</button>
+    <button class="cam-btn" style="flex:1; justify-content:center; background:var(--red-soft); color:var(--red);" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
+  </div>
+</div>
 
        <!-- Setor -->
         <div class="ios-card-row">
