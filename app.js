@@ -191,19 +191,36 @@ function filtrarProdutos() {
 // ══════════════════════════════════════════════════════════════
 //  LEITOR ULTRAWIDE (Horizontal Laser Scanner)
 // ══════════════════════════════════════════════════════════════
+// ══════ CÂMERA DE ENTRADA ══════
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
-  toast('📱 Deite o telemóvel para escancear melhor!');
   
-  // Resolução gigante na horizontal (600x200) para criar o "Laser Ultrawide"
-  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 600, height: 200 } },
+  // Caixa de 280x85 cria a "fenda" com a máscara de compressão automática
+  html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 280, height: 85 } },
     function(decodedText) {
-      pararScannerEntrada();
+      pararScannerEntrada(); // <-- ISSO AQUI JÁ FECHA A CÂMERA SOZINHO NA HORA DO BIPE!
       document.getElementById('entCodigoBarras').value = decodedText;
       buscarProdutoPorCodigo(decodedText);
+      // Dispara um som rápido (opcional, truque de UX)
+      if(navigator.vibrate) navigator.vibrate(100);
     }, function(err) {}
   ).catch(function(err) { toast("Erro na câmara."); pararScannerEntrada(); });
+}
+
+// ══════ CÂMERA DE SAÍDA ══════
+function iniciarScannerSaida() {
+  document.getElementById('scannerSaidaArea').style.display = 'block';
+  html5QrcodeScannerSaida = new Html5Qrcode("readerSaida");
+  
+  html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 20, qrbox: { width: 280, height: 85 } },
+    function(decodedText) {
+      pararScannerSaida(); // <-- FECHA A CÂMERA SOZINHO AQUI TAMBÉM
+      var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; });
+      if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); }
+      if(navigator.vibrate) navigator.vibrate(100);
+    }, function(err) {}
+  ).catch(function(err) { toast("Erro na câmara."); pararScannerSaida(); });
 }
 function pararScannerEntrada() {
   if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; }).catch(function(){}); }
