@@ -159,21 +159,28 @@ var isFlashOnEntrada = false;
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
+  
   html5QrcodeScannerEntrada.start(
+    { facingMode: "environment" }, // 🔴 O QUE FALTAVA: Diz para usar a câmera traseira!
     {
-  fps: 15,
-  qrbox: { width: 280, height: 120 }, // 📦 A caixa de leitura perfeita
-  aspectRatio: 1.0, // 🔴 A MÁGICA DA ALTURA: Força a câmera a ser um bloco curto!
-  experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-},
+      fps: 15,
+      qrbox: { width: 280, height: 120 }, // 📦 A caixa de leitura perfeita
+      aspectRatio: 1.0, // 🔴 A MÁGICA DA ALTURA: Força a câmera a ser um bloco curto!
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    },
     function(decodedText) {
       pararScannerEntrada();
       document.getElementById('entCodigoBarras').value = decodedText;
       buscarProdutoPorCodigo(decodedText);
       if(navigator.vibrate) navigator.vibrate(100);
     },
-    function(err) {}
-  ).catch(function(err) { toast("Erro na câmara."); pararScannerEntrada(); });
+    function(err) {
+      // Ignora os erros normais de frame não lido
+    }
+  ).catch(function(err) { 
+    toast("Erro na câmara."); 
+    pararScannerEntrada(); 
+  });
 }
 function pararScannerEntrada() {
   if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; isFlashOnEntrada = false; }).catch(function(){}); }
