@@ -26,7 +26,7 @@
     <h2>Estoque Digital</h2>
     <p class="sub">CRV/LAS — Controle de Estoque</p>
     <select id="loginUser" class="login-field">
-      <option value="">Selecione seu nome</option>
+      <option value="">Selecione o seu nome</option>
       <option value="LUCAS">Lucas</option>
       <option value="TASSIO">Tassio</option>
       <option value="AMARAL">Amaral</option>
@@ -67,8 +67,9 @@
   <div class="container">
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchTab('painel')" id="tabPainel">Painel</button>
-      <button class="tab-btn" onclick="switchTab('entrada')" id="tabEntrada">+ Entrada</button>
-      <button class="tab-btn" onclick="switchTab('saida')" id="tabSaida">Saída/Carrinho</button>
+      <button class="tab-btn" onclick="switchTab('entrada')" id="tabEntrada">Entrada</button>
+      <button class="tab-btn" onclick="switchTab('saida')" id="tabSaida">Saída</button>
+      <button class="tab-btn" onclick="switchTab('auditoria')" id="tabAuditoria">Auditoria</button>
     </div>
 
     <div class="tab-content active" id="contentPainel">
@@ -80,7 +81,7 @@
         <div class="stat-card purple"><span class="s-icon">🚫</span><div class="s-label">Estoque Zero</div><div class="s-value purple" id="statZero">0</div></div>
       </div>
 
-      <div class="relatorio-switch-row" id="relatorioSwitchRow">
+      <div class="relatorio-switch-row">
         <span class="relatorio-switch-label">Relatório para Impressão</span>
         <div class="apple-switch" id="switchRelatorio" onclick="toggleRelatorio()"><div class="apple-switch-track"><div class="apple-switch-thumb"></div></div></div>
       </div>
@@ -92,21 +93,21 @@
 
       <div class="section-label">Produtos</div>
       <div class="search-wrap">
-        <input type="text" id="searchInput" class="search-field" placeholder="Buscar produto, marca ou setor..." oninput="filtrarProdutos()">
+        <input type="text" id="searchInput" class="search-field" placeholder="Buscar produto..." oninput="filtrarProdutos()">
       </div>
       <div id="produtosList"><p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando...</p></div>
       <p class="sync-time" id="syncTime"></p>
     </div>
 
     <div class="tab-content" id="contentEntrada">
-      <div class="section-label">Registrar Nova Entrada</div>
+      <div class="section-label">Nova Entrada de Mercadoria</div>
       <div class="form-card">
         
         <div class="form-group">
           <label class="form-label">Código de Barras</label>
           <div style="display:flex; gap:8px;">
-            <input type="text" id="entCodigoBarras" class="form-field" placeholder="Escaneie ou digite o código" onblur="buscarProdutoPorCodigo(this.value)">
-            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button" style="flex-shrink:0;">📷 Escanear</button>
+            <input type="text" id="entCodigoBarras" class="form-field" placeholder="Leia o código" onblur="buscarProdutoPorCodigo(this.value)">
+            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button">📷 Scanner</button>
           </div>
           <div id="scannerEntradaArea" style="display:none; margin-top:12px;">
             <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
@@ -129,18 +130,12 @@
           </select>
         </div>
 
-        <div class="form-group"><label class="form-label">Produto *</label><input type="text" id="entProduto" class="form-field" placeholder="Nome do produto"></div>
-        <div class="form-group"><label class="form-label">Marca</label><input type="text" id="entMarca" class="form-field" placeholder="Marca (opcional)"></div>
+        <div class="form-group"><label class="form-label">Produto *</label><input type="text" id="entProduto" class="form-field" placeholder="Nome"></div>
+        <div class="form-group"><label class="form-label">Marca</label><input type="text" id="entMarca" class="form-field" placeholder="Marca"></div>
 
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Quantidade *</label><input type="number" id="entQtd" class="form-field" placeholder="0" min="0" step="0.01"></div>
-          <div class="form-group">
-            <label class="form-label">Unidade</label>
-            <select id="entUnidade" class="form-field">
-              <option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option>
-              <option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
-            </select>
-          </div>
+          <div class="form-group"><label class="form-label">Quantidade *</label><input type="number" id="entQtd" class="form-field" placeholder="0"></div>
+          <div class="form-group"><label class="form-label">Unidade</label><select id="entUnidade" class="form-field"><option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option></select></div>
         </div>
 
         <div class="form-row">
@@ -148,21 +143,24 @@
           <div class="form-group"><label class="form-label">Lote</label><input type="text" id="entLote" class="form-field" placeholder="Lote"></div>
         </div>
 
-        <div class="form-group"><label class="form-label">Observações</label><input type="text" id="entObs" class="form-field" placeholder="Observações (opcional)"></div>
+        <div class="form-group"><label class="form-label">Observações</label><input type="text" id="entObs" class="form-field" placeholder="Opcional"></div>
 
         <div class="form-group">
-          <label class="form-label">Foto do Produto</label>
-          <div class="foto-area">
-            <video id="fotoVideo" autoplay playsinline></video>
-            <canvas id="fotoCanvas"></canvas>
-            <div class="foto-actions">
-              <button class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Tirar Foto</button>
-              <button class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none;">🔄 Refazer</button>
+          <label class="form-label">Foto de Avaria / Identificação</label>
+          <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; margin-bottom: 10px; border: 1px dashed rgba(255,255,255,0.2);">📷 Abrir Câmara (Opcional)</button>
+          
+          <div class="foto-area" id="areaCameraEntrada" style="display:none;">
+            <video id="fotoVideo" autoplay playsinline style="width:100%; max-width:200px; border-radius:12px;"></video>
+            <canvas id="fotoCanvas" style="display:none;"></canvas>
+            <div class="foto-actions" style="margin-top:10px;">
+              <button type="button" class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()">📸 Tirar Foto</button>
+              <button type="button" class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none;">🔄 Refazer</button>
             </div>
-            <div class="selfie-ok" id="fotoOk">✅ Foto capturada</div>
+            <div class="selfie-ok" id="fotoOk" style="display:none; color:var(--green); margin-top:8px; font-weight:600;">✅ Foto Registrada</div>
           </div>
         </div>
-        <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Registrar Entrada</button>
+
+        <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Salvar Entrada</button>
       </div>
     </div>
 
@@ -170,8 +168,8 @@
       <div class="section-label">Saída em Lote (Carrinho)</div>
 
       <div class="search-wrap" style="display:flex; gap:8px;">
-        <input type="text" id="saidaSearch" class="search-field" placeholder="Buscar produto..." oninput="filtrarSaida()">
-        <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex-shrink:0;">📷 Escanear</button>
+        <input type="text" id="saidaSearch" class="search-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()">
+        <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button">📷 Bipar</button>
       </div>
       <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
         <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
@@ -179,39 +177,67 @@
       </div>
 
       <div id="carrinhoArea" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px; margin-bottom:20px; display:none;">
-        <div class="section-label" style="margin-top:0;">🛒 Itens no Carrinho (<span id="cartCount">0</span>)</div>
+        <div class="section-label" style="margin-top:0;">🛒 Itens Selecionados (<span id="cartCount">0</span>)</div>
         <div id="cartList"></div>
         <div style="margin-top:16px;">
-          <input type="text" id="loteMotivo" class="form-field" placeholder="Motivo/Requisição (Opcional)" style="margin-bottom:12px; padding:10px 14px;">
-          <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Saída</button>
+          <input type="text" id="loteMotivo" class="form-field" placeholder="Motivo da Saída" style="margin-bottom:12px;">
+          <button class="submit-btn" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
       </div>
 
-      <div class="section-label">Estoque Disponível (Clique para Adicionar)</div>
-      <div id="saidaList">
+      <div class="section-label">Estoque (Clique para adicionar)</div>
+      <div id="saidaList"></div>
+    </div>
+
+    <div class="tab-content" id="contentAuditoria">
+      <div class="section-label">Conferência Cega de Estoque</div>
+      <p style="color:var(--text-tertiary); font-size:0.75rem; margin-bottom:16px; padding:0 4px;">Conte os itens na prateleira e digite o valor real. O sistema não mostrará o estoque atual para garantir precisão.</p>
+      
+      <div class="search-wrap">
+        <input type="text" id="auditoriaSearch" class="search-field" placeholder="Buscar produto para auditar..." oninput="filtrarAuditoria()">
+      </div>
+      
+      <div id="auditoriaList">
         <p style="color:rgba(235,235,245,.3);font-size:.85rem;text-align:center;padding:20px;">Carregando produtos...</p>
       </div>
     </div>
 
-  </div></div><div class="modal-full" id="detalheModal">
-  <div class="modal-bar">
-    <h2>📋 Detalhes do Produto</h2>
-    <button class="modal-close" onclick="fecharDetalhe()">✕</button>
   </div>
+</div>
+
+<div class="modal-full" id="auditoriaModal" style="z-index:6500;">
+  <div class="modal-bar"><h2>🕵️ Auditar Item</h2><button class="modal-close" onclick="fecharAuditoria()">✕</button></div>
+  <div class="modal-body">
+    <div class="form-card" style="text-align:center;">
+      <p style="color:var(--text-secondary); font-size:.9rem;" id="auditoriaProdSetor"></p>
+      <p style="color:var(--text-primary); font-size:1.2rem; font-weight:700; margin:10px 0;" id="auditoriaProdNome"></p>
+      <input type="hidden" id="auditoriaProdLinha">
+      
+      <div class="form-group" style="margin-top:24px;">
+        <label class="form-label">Quantidade Contada na Prateleira</label>
+        <input type="number" id="auditoriaQtdFisica" class="form-field" placeholder="0" style="text-align:center; font-size:1.5rem; font-weight:800; color:var(--blue);">
+      </div>
+      
+      <button class="submit-btn" id="btnSalvarAuditoria" onclick="enviarAuditoria()" style="background:var(--indigo);">Verificar Divergência</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-full" id="detalheModal">
+  <div class="modal-bar"><h2>📋 Detalhes</h2><button class="modal-close" onclick="fecharDetalhe()">✕</button></div>
   <div class="modal-body" id="detalheBody"></div>
 </div>
 
 <div class="modal-full" id="editModal" style="z-index:6000;">
-  <div class="modal-bar"><h2>✏️ Editar Produto</h2><button class="modal-close" onclick="fecharEditar()">✕</button></div>
+  <div class="modal-bar"><h2>✏️ Editar</h2><button class="modal-close" onclick="fecharEditar()">✕</button></div>
   <div class="modal-body" id="editBody"></div>
 </div>
 
 <div class="success-overlay" id="successOverlay">
   <div class="success-icon" id="successIcon">✅</div>
-  <div class="success-msg" id="successMsg">Operação realizada!</div>
+  <div class="success-msg" id="successMsg">Ok!</div>
   <div class="success-detail" id="successDetail"></div>
 </div>
-
 <div id="relatorioOverlay" class="relatorio-overlay"></div>
 <div class="toast" id="toast"></div>
 
