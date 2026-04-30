@@ -160,8 +160,12 @@ function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block';
   html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
   html5QrcodeScannerEntrada.start(
-    { facingMode: "environment" }, 
-    { fps: 15, qrbox: { width: 300, height: 85 }, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+    {
+  fps: 15,
+  qrbox: { width: 280, height: 120 }, // 📦 A caixa de leitura perfeita
+  aspectRatio: 1.0, // 🔴 A MÁGICA DA ALTURA: Força a câmera a ser um bloco curto!
+  experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+},
     function(decodedText) {
       pararScannerEntrada();
       document.getElementById('entCodigoBarras').value = decodedText;
