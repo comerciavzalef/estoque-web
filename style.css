@@ -217,15 +217,3 @@ select option { background: #1c1c1e !important; color: #fff !important; }
   from { opacity: 0; transform: translateY(6px) scale(.96); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-/* ══════════════ MELHORIA VISUAL DA CÂMERA DE SCANNER ══════════════ */
-#readerEntrada, #readerSaida { 
-  width: 100% !important; 
-  border: none !important; 
-  background: #000;
-}
-#readerEntrada video, #readerSaida video { 
-  object-fit: cover !important; 
-  border-radius: 12px !important; 
-  width: 100% !important;
-}
