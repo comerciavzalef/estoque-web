@@ -153,3 +153,16 @@ select option { background: #1c1c1e !important; color: #fff !important; }
   min-width: 18px !important;
   min-height: 18px !important;
 }
+
+} /* <-- Esta chave garante que nenhum erro acima afete este código */
+
+/* ══════════════ BLINDAGEM DO OVERLAY DE SUCESSO (OK!) ══════════════ */
+#successOverlay:not(.show) {
+  display: none !important;
+}
+#successOverlay.show {
+  display: flex !important;
+  position: fixed !important; inset: 0; z-index: 8000; 
+  background: rgba(0,0,0,.85); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  align-items: center; justify-content: center; flex-direction: column;
+}
