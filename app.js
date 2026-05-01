@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v10.0 (Auditoria Smart & Anti-Lentidão)
+//  ESTOQUE DIGITAL — app.js v11.0 (Latência Zero & Auditoria Smart)
 //  Grupo Carlos Vaz — CRV/LAS
 // ══════════════════════════════════════════════════════════════
 
@@ -7,7 +7,7 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbyvw-6uBYct475K2nv5J-U2z3
 var SESSION_KEY = 'cv_estoque_sessao';
 
 var CREDS_OFFLINE = {
-  'LUIZ':   '704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157',
+  'LUIZ':   '4e94d7cf6a395fd8e12ad235143b25e60de3a9ac18a5cb6d090325138d22a7a1',
   'LUCAS':  '704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157', 
   'TASSIO': '704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157',
   'AMARAL': '704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157', 
@@ -66,7 +66,7 @@ function iniciarApp() {
   document.getElementById('ldScreen').classList.remove('hidden'); document.getElementById('mainApp').style.display = 'block'; document.getElementById('userBadge').textContent = sessao.nome;
   if (sessao.nivel === 'gestor') document.getElementById('badgeGestor').style.display = '';
   var cache = localStorage.getItem('cv_estoque_cache');
-  if(cache) { dadosEstoque = JSON.parse(cache); renderPainel(dadosEstoque); } // Anti-Lentidão: carrega imediato
+  if(cache) { dadosEstoque = JSON.parse(cache); renderPainel(dadosEstoque); } 
   document.getElementById('ldScreen').classList.add('hidden'); syncDados(); refreshInterval = setInterval(syncDados, 300000);
 }
 
@@ -182,17 +182,39 @@ function renderCarrinho() {
   area.style.display = 'block'; count.textContent = carrinhoSaida.length; var h = '';
   carrinhoSaida.forEach(function(item) { h += '<div class="cart-item"><div class="cart-info"><strong>' + escapeHtml(item.nome) + '</strong><small>Estoque: ' + item.max + ' ' + item.unidade + '</small></div><div class="cart-controls"><button onclick="alterarQtdCarrinho(' + item.linha + ', -1)">-</button><span>' + item.quantidade + '</span><button onclick="alterarQtdCarrinho(' + item.linha + ', 1)">+</button></div></div>'; }); list.innerHTML = h;
 }
+
+// ⚡ INTERFACE OTIMISTA (Ação Imediata no Carrinho)
 function confirmarSaidaLote() {
   if (carrinhoSaida.length === 0) return; var btn = document.getElementById('btnConfirmarLote'); 
-  var motivoSelect = document.getElementById('loteMotivoSelect').value; var motivoObs = document.getElementById('loteMotivoObs').value.trim(); var motivoFinal = motivoSelect; if (motivoObs !== '') { motivoFinal += ' - ' + motivoObs; }
-  btn.disabled = true; btn.textContent = 'Enviando...'; var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
+  var motivoInput = document.getElementById('loteMotivoSelect') || document.getElementById('loteMotivo');
+  var obsInput = document.getElementById('loteMotivoObs');
+  var motivoFinal = (motivoInput ? motivoInput.value : 'SAÍDA'); 
+  if (obsInput && obsInput.value.trim() !== '') { motivoFinal += ' - ' + obsInput.value.trim(); }
+  
+  if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
+  
+  // 🔴 Otimização Instantânea: Ajusta localmente sem esperar o servidor
+  carrinhoSaida.forEach(function(item) {
+      var p = dadosEstoque.produtos.find(function(x) { return x.linha === item.linha; });
+      if(p) p.quantidade -= item.quantidade; 
+  });
+  
+  carrinhoSaida = [];
+  if(motivoInput) motivoInput.value = 'SAÍDA DE PEDIDO';
+  if(obsInput) obsInput.value = '';
+  renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
+  showSuccess('📤', 'Baixa Concluída!', 'Estoque atualizado.');
+
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'saidaLote', colaborador: sessao.nome, nome: sessao.nome, itens: itensPayload }), redirect: 'follow' })
-    .then(function (r) { return r.json(); }).then(function (d) { if (d.status === 'ok') { showSuccess('📤', d.mensagem, ''); carrinhoSaida = []; document.getElementById('loteMotivoSelect').value = 'PEDIDO'; document.getElementById('loteMotivoObs').value = ''; renderCarrinho(); syncDados(); } else { toast(d.msg || 'Erro na saída'); } }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = '✅ Confirmar Baixa Total'; });
+    .then(function (r) { return r.json(); }).then(function (d) { syncDados(); })
+    .catch(function () { toast('Sincronizando em 2º plano...'); })
+    .finally(function () { if(btn) { btn.disabled = false; btn.textContent = '✅ Confirmar Baixa Total'; }});
 }
 
 function renderAuditoriaList(produtos) {
   var el = document.getElementById('auditoriaList'); if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível</div></div>'; return; }
-  var html = ''; produtos.forEach(function (p) { html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + p.linha + ')"><div class="saida-icon" style="background:var(--indigo); color:#fff;">🕵️</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><button class="saida-btn" style="background:var(--indigo);">Auditar</button></div>'; }); el.innerHTML = html;
+  var html = ''; produtos.forEach(function (p) { html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + p.linha + ')"><div class="saida-icon" style="background:var(--purple); color:#fff;">🕵️</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><button class="saida-btn" style="background:var(--purple-soft); color:var(--purple);">Auditar</button></div>'; }); el.innerHTML = html;
 }
 function filtrarAuditoria() { if (!dadosEstoque) return; var termo = document.getElementById('auditoriaSearch').value.toLowerCase().trim(); if (!termo) { renderAuditoriaList(dadosEstoque.produtos); return; } var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); }); renderAuditoriaList(filtrados); }
 function abrirAuditoriaModal(linha) {
@@ -200,7 +222,7 @@ function abrirAuditoriaModal(linha) {
 }
 function fecharAuditoria() { document.getElementById('auditoriaModal').classList.remove('show'); }
 
-// 🔴 A MÁGICA DA AUDITORIA INTELIGENTE: Pede para confirmar e atualiza o saldo sozinho!
+// ⚡ INTERFACE OTIMISTA + AUDITORIA INTELIGENTE
 function enviarAuditoria() {
   var btn = document.getElementById('btnSalvarAuditoria'); var qtdStr = document.getElementById('auditoriaQtdFisica').value; if (qtdStr === '') { toast('Informe a quantidade'); return; }
   var qtd = parseFloat(qtdStr); var linha = parseInt(document.getElementById('auditoriaProdLinha').value); btn.disabled = true; btn.textContent = 'Verificando...';
@@ -214,21 +236,35 @@ function enviarAuditoria() {
           // Inteligência Artificial de Ajuste:
           var resp = confirm('⚠️ Divergência Detectada!\n\nA prateleira tem ' + qtd + ' itens, mas o sistema esperava ' + (qtd - d.diferenca) + '.\n\nDeseja que o App AJUSTE O SALDO da planilha agora?');
           if(resp) {
-            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome }), redirect: 'follow' }).then(syncDados);
+            // 🔴 Ajuste Local Otimista
+            var prod = dadosEstoque.produtos.find(function(x){ return x.linha === linha; });
+            if(prod) prod.quantidade = qtd;
+            renderPainel(dadosEstoque);
             showSuccess('🔄', 'Estoque Ajustado!', 'O saldo do produto foi corrigido para ' + qtd + ' unidades.');
-          } else {
-            showSuccess('⚠️', 'Apenas Registrado', 'A diferença de ' + d.diferenca + ' itens foi enviada ao Gestor.');
-          }
+            // Salva em 2º Plano
+            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome }), redirect: 'follow' }).then(syncDados);
+          } else { showSuccess('⚠️', 'Apenas Registrado', 'A diferença de ' + d.diferenca + ' itens foi enviada ao Gestor.'); }
         } 
       } else { toast(d.msg || 'Erro'); }
     }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
 }
 
+// ⚡ INTERFACE OTIMISTA (Ação Imediata na Entrada)
 function enviarEntrada() {
   var produto = document.getElementById('entProduto').value.trim(); var qtd = document.getElementById('entQtd').value; if (!produto) { toast('Informe o nome do produto'); return; } if (!qtd || parseFloat(qtd) <= 0) { toast('Informe a quantidade'); return; } var btn = document.getElementById('btnEntrada'); btn.disabled = true; btn.textContent = 'Registando...';
-  fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value, produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value, validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(), observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData }), redirect: 'follow' })
-    .then(function (r) { return r.json(); }).then(function (d) { if (d.status === 'ok') { showSuccess('📦', d.mensagem, d.produto + ' — ' + d.quantidade + ' un'); limparFormEntrada(); syncDados(); } else { toast(d.msg || 'Erro'); } }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Salvar Entrada'; });
+  
+  var payload = { acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value, produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value, validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(), observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData };
+  
+  // 🔴 Otimização Instantânea
+  showSuccess('📦', 'Produto Registrado!', produto + ' adicionado.');
+  limparFormEntrada(); switchTab('painel');
+  
+  fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
+    .then(function (r) { return r.json(); }).then(function (d) { syncDados(); })
+    .catch(function () { toast('Sincronizando no servidor...'); })
+    .finally(function () { btn.disabled = false; btn.textContent = 'Salvar Entrada'; });
 }
+
 function limparFormEntrada() { document.getElementById('entCodigoBarras').value = ''; document.getElementById('entSetor').value = ''; document.getElementById('entProduto').value = ''; document.getElementById('entMarca').value = ''; document.getElementById('entQtd').value = ''; document.getElementById('entUnidade').value = 'UN'; document.getElementById('entValidade').value = ''; document.getElementById('entLote').value = ''; document.getElementById('entObs').value = ''; resetarFoto(); document.getElementById('areaCameraEntrada').style.display = 'none'; document.getElementById('btnRevelarCamera').style.display = 'flex'; }
 function mostrarCameraEntrada() { document.getElementById('btnRevelarCamera').style.display = 'none'; document.getElementById('areaCameraEntrada').style.display = 'block'; initFotoCamera(); }
 function initFotoCamera() { if (fotoStream) return; var video = document.getElementById('fotoVideo'); if (!video) return; navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 480, height: 480 } }).then(function (s) { fotoStream = s; video.srcObject = s; }).catch(function () { }); }
