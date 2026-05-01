@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v12.0 (Lanterna & Filtro de Zero Smart)
+//  ESTOQUE DIGITAL — app.js v13.0 (Otimista, Agrupamento e Balões)
 //  Grupo Carlos Vaz — CRV/LAS
 // ══════════════════════════════════════════════════════════════
 
@@ -62,7 +62,6 @@ function logout() {
   switchTab('painel');
 }
 
-// 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Estoque Zero se existir lote com saldo)
 // 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Zeros Duplicados)
 function limparDuplicatasZeradas(d) {
   if (!d || !d.produtos) return d;
@@ -70,22 +69,18 @@ function limparDuplicatasZeradas(d) {
   var produtosFinais = [];
   var zerosVistos = {}; // Memória para garantir que só aparece 1 zerado por produto
 
-  // Passo 1: Limpar os produtos da Base de Dados
   d.produtos.forEach(function(p) {
       if (p.quantidade > 0) {
-          produtosFinais.push(p); // Produtos com saldo sempre aparecem (para ver lotes diferentes)
+          produtosFinais.push(p); 
       } else {
-          // É um produto zerado. 
-          // 1º Verifica se o app já tem alguma linha desse mesmo produto com saldo > 0
           var temIrmaoComSaldo = d.produtos.some(function(ir) { 
               return ir.quantidade > 0 && ir.nome === p.nome && ir.marca === p.marca; 
           });
           
           if (!temIrmaoComSaldo) {
-              // 2º Se está totalmente zerado, mostramos apenas UMA vez!
               var chave = p.nome + "_" + p.marca;
               if (!zerosVistos[chave]) {
-                  zerosVistos[chave] = true; // Grava na memória que já mostrou esse zero
+                  zerosVistos[chave] = true;
                   produtosFinais.push(p);
               }
           }
@@ -93,11 +88,9 @@ function limparDuplicatasZeradas(d) {
   });
   d.produtos = produtosFinais;
 
-  // Passo 2: Limpar os Alertas do Painel
   if (d.alertas) {
       var alertasFinais = [];
       var alertasZerosVistos = {};
-
       d.alertas.forEach(function(a) {
           if (a.quantidade > 0) {
               alertasFinais.push(a);
@@ -111,7 +104,6 @@ function limparDuplicatasZeradas(d) {
       });
       d.alertas = alertasFinais;
   }
-
   return d;
 }
 
@@ -134,7 +126,7 @@ function switchTab(tab) {
 
 function syncDados() {
   fetch(API_URL + '?sync=1').then(function (r) { return r.json(); }).then(function (d) {
-      d = limparDuplicatasZeradas(d); // Aplica a blindagem de zeros ao receber dados
+      d = limparDuplicatasZeradas(d);
       dadosEstoque = d; setBadge(true); localStorage.setItem('cv_estoque_cache', JSON.stringify(d)); renderPainel(d);
       if(document.getElementById('tabSaida').classList.contains('active')) renderSaidaList(d.produtos);
       if(document.getElementById('tabAuditoria').classList.contains('active')) renderAuditoriaList(d.produtos);
@@ -143,9 +135,25 @@ function syncDados() {
 function setBadge(on) { var b = document.getElementById('badgeStatus'); b.textContent = on ? 'Online' : 'Offline'; b.className = 'badge ' + (on ? 'badge-online' : 'badge-offline'); }
 
 function renderPainel(d) {
-  if (!d) return; var totalProd = d.totalProdutos || 0; var alertas = d.alertas || []; var produtos = d.produtos || []; var okCount = 0; var zeroCount = 0;
-  produtos.forEach(function (p) { if (p.quantidade === 0) zeroCount++; else if (p.status === 'OK' || p.status === 'MONITORAR') okCount++; });
-  document.getElementById('statTotal').textContent = totalProd; document.getElementById('statOk').textContent = okCount; document.getElementById('statAlertas').textContent = alertas.length; document.getElementById('statZero').textContent = zeroCount;
+  if (!d) return; 
+  var alertas = d.alertas || []; 
+  var produtos = d.produtos || []; 
+  var okCount = 0; var zeroCount = 0;
+  
+  // 🧠 MÁGICA DA CONTAGEM ÚNICA (Ignora lotes para não somar 6 onde tem 2)
+  var produtosUnicos = new Set();
+
+  produtos.forEach(function (p) { 
+    produtosUnicos.add(p.nome + '_' + p.marca); // Agrupa
+    if (p.quantidade === 0) zeroCount++; 
+    else if (p.status === 'OK' || p.status === 'MONITORAR') okCount++; 
+  });
+
+  document.getElementById('statTotal').textContent = produtosUnicos.size; // Mostra contagem real!
+  document.getElementById('statOk').textContent = okCount; 
+  document.getElementById('statAlertas').textContent = alertas.length; 
+  document.getElementById('statZero').textContent = zeroCount;
+
   var alertSection = document.getElementById('alertasSection'); var alertList = document.getElementById('alertasList');
   if (alertas.length > 0) {
     alertSection.style.display = 'block'; var ah = '';
@@ -251,8 +259,6 @@ function renderCarrinho() {
   carrinhoSaida.forEach(function(item) { h += '<div class="cart-item"><div class="cart-info"><strong>' + escapeHtml(item.nome) + '</strong><small>Estoque: ' + item.max + ' ' + item.unidade + '</small></div><div class="cart-controls"><button onclick="alterarQtdCarrinho(' + item.linha + ', -1)">-</button><span>' + item.quantidade + '</span><button onclick="alterarQtdCarrinho(' + item.linha + ', 1)">+</button></div></div>'; }); list.innerHTML = h;
 }
 
-// ⚡ INTERFACE OTIMISTA (Ação Imediata no Carrinho)
-// ⚡ INTERFACE OTIMISTA (Ação Imediata no Carrinho) + GERADOR DE ROMANEIO
 function confirmarSaidaLote() {
   if (carrinhoSaida.length === 0) return; var btn = document.getElementById('btnConfirmarLote'); 
   var motivoInput = document.getElementById('loteMotivoSelect') || document.getElementById('loteMotivo');
@@ -264,10 +270,10 @@ function confirmarSaidaLote() {
   
   if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   
-  // 🔴 SALVA OS DADOS DO CARRINHO ANTES DE LIMPAR PARA GERAR O PDF
   var itensParaRomaneio = JSON.parse(JSON.stringify(carrinhoSaida));
   var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
   
+  // ⚡ OTIMISTA: Remove as quantidades locais antes do servidor
   carrinhoSaida.forEach(function(item) {
       var p = dadosEstoque.produtos.find(function(x) { return x.linha === item.linha; });
       if(p) p.quantidade -= item.quantidade; 
@@ -278,7 +284,6 @@ function confirmarSaidaLote() {
   if(obsInput) obsInput.value = '';
   renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
   
-  // 🔴 SE FOR PEDIDO, GERA O COMPROVANTE DE ENTREGA / ROMANEIO
   if (motivoValue === 'SAÍDA DE PEDIDO') {
       showSuccess('🖨️', 'Pedido Separado!', 'Gerando comprovante de entrega...');
       gerarComprovantePedido(itensParaRomaneio, destino);
@@ -302,7 +307,6 @@ function abrirAuditoriaModal(linha) {
 }
 function fecharAuditoria() { document.getElementById('auditoriaModal').classList.remove('show'); }
 
-// ⚡ INTERFACE OTIMISTA + AUDITORIA INTELIGENTE
 function enviarAuditoria() {
   var btn = document.getElementById('btnSalvarAuditoria'); var qtdStr = document.getElementById('auditoriaQtdFisica').value; if (qtdStr === '') { toast('Informe a quantidade'); return; }
   var qtd = parseFloat(qtdStr); var linha = parseInt(document.getElementById('auditoriaProdLinha').value); btn.disabled = true; btn.textContent = 'Verificando...';
@@ -318,20 +322,30 @@ function enviarAuditoria() {
             var prod = dadosEstoque.produtos.find(function(x){ return x.linha === linha; });
             if(prod) prod.quantidade = qtd;
             renderPainel(dadosEstoque);
-            showSuccess('🔄', 'Estoque Ajustado!', 'O saldo do produto foi corrigido para ' + qtd + ' unidades.');
+            showSuccess('🔄', 'Estoque Ajustado!', 'O saldo corrigido para ' + qtd + '.');
             fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome }), redirect: 'follow' }).then(syncDados);
-          } else { showSuccess('⚠️', 'Apenas Registrado', 'A diferença de ' + d.diferenca + ' itens foi enviada ao Gestor.'); }
+          } else { showSuccess('⚠️', 'Apenas Registrado', 'A diferença foi enviada ao Gestor.'); }
         } 
       } else { toast(d.msg || 'Erro'); }
     }).catch(function () { toast('Sem conexão'); }).finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
 }
 
-// ⚡ INTERFACE OTIMISTA (Ação Imediata na Entrada)
 function enviarEntrada() {
   var produto = document.getElementById('entProduto').value.trim(); var qtd = document.getElementById('entQtd').value; if (!produto) { toast('Informe o nome do produto'); return; } if (!qtd || parseFloat(qtd) <= 0) { toast('Informe a quantidade'); return; } var btn = document.getElementById('btnEntrada'); btn.disabled = true; btn.textContent = 'Registando...';
   
   var payload = { acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value, produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value, validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(), observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData };
   
+  // ⚡ A MÁGICA DA INTERFACE OTIMISTA (A tela atualiza antes do Google salvar)
+  if(!dadosEstoque.produtos) dadosEstoque.produtos = [];
+  dadosEstoque.produtos.unshift({
+    linha: Date.now(), 
+    nome: produto, marca: payload.marca, setor: payload.setor,
+    quantidade: parseFloat(qtd), unidade: payload.unidade,
+    status: 'OK', validade: payload.validade, lote: payload.lote, codigoBarras: payload.codigoBarras
+  });
+  dadosEstoque = limparDuplicatasZeradas(dadosEstoque);
+  renderPainel(dadosEstoque); // Mostra na tela na hora!
+
   showSuccess('📦', 'Produto Registrado!', produto + ' adicionado.');
   limparFormEntrada(); switchTab('painel');
   
@@ -390,110 +404,48 @@ function showSuccess(icon, msg, detail) { document.getElementById('successIcon')
 function toast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 3500); }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-// 🖨️ GERADOR DE COMPROVANTE DE ENTREGA / ROMANEIO (Estilo Apple/Premium)
 function gerarComprovantePedido(itens, destino) {
   var hoje = new Date();
   var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
   var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
 
-  // Desenha o layout do papel A4 (fundo branco, letras pretas para impressora térmica ou normal)
   var html = '<div class="rel-container" style="background: #fff; color: #000; font-family: \'Inter\', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">';
-  
-  // Cabeçalho
   html += '<div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">';
   html += '<h1 style="margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase;">Comprovante de Entrega</h1>';
-  html += '<p style="margin: 5px 0 0 0; font-size: 14px; font-weight: 600; color: #444;">Grupo Carlos Vaz — CRV/LAS/CENTRAL</p>';
-  html += '</div>';
-
-  // Informações do Pedido
+  html += '<p style="margin: 5px 0 0 0; font-size: 14px; font-weight: 600; color: #444;">Grupo Carlos Vaz — CRV/LAS</p></div>';
   html += '<div style="background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6;">';
   html += '<strong>Data de Separação:</strong> ' + dataStr + ' às ' + horaStr + '<br>';
   html += '<strong>Separador Responsável:</strong> ' + (sessao ? sessao.nome : '—') + '<br>';
-  html += '<strong>Destino / Cidade / Obra:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase;">' + escapeHtml(destino) + '</span><br>';
-  html += '</div>';
-
-  // Tabela de Produtos
+  html += '<strong>Destino / Obra:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase;">' + escapeHtml(destino) + '</span><br></div>';
   html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 14px;">';
-  html += '<thead><tr style="background: #eee; border-bottom: 2px solid #000;">';
-  html += '<th style="padding: 12px 8px; text-align: left;">Qtd</th>';
-  html += '<th style="padding: 12px 8px; text-align: left;">Un</th>';
-  html += '<th style="padding: 12px 8px; text-align: left;">Produto</th>';
-  html += '<th style="padding: 12px 8px; text-align: center;">Conferido</th>';
-  html += '</tr></thead><tbody>';
+  html += '<thead><tr style="background: #eee; border-bottom: 2px solid #000;"><th style="padding: 12px 8px; text-align: left;">Qtd</th><th style="padding: 12px 8px; text-align: left;">Un</th><th style="padding: 12px 8px; text-align: left;">Produto</th><th style="padding: 12px 8px; text-align: center;">Conferido</th></tr></thead><tbody>';
 
   itens.forEach(function(item) {
     html += '<tr style="border-bottom: 1px solid #ddd;">';
     html += '<td style="padding: 12px 8px; font-weight: 800; font-size: 16px;">' + item.quantidade + '</td>';
     html += '<td style="padding: 12px 8px; color: #555;">' + escapeHtml(item.unidade) + '</td>';
     html += '<td style="padding: 12px 8px; font-weight: 500;">' + escapeHtml(item.nome) + '</td>';
-    html += '<td style="padding: 12px 8px; text-align: center;"><div style="width: 20px; height: 20px; border: 1px solid #999; border-radius: 4px; margin: 0 auto;"></div></td>';
-    html += '</tr>';
+    html += '<td style="padding: 12px 8px; text-align: center;"><div style="width: 20px; height: 20px; border: 1px solid #999; border-radius: 4px; margin: 0 auto;"></div></td></tr>';
   });
 
-  html += '</tbody></table>';
-
-  // Área de Assinaturas
-  html += '<div style="margin-top: 40px; font-size: 13px; color: #333;">';
+  html += '</tbody></table><div style="margin-top: 40px; font-size: 13px; color: #333;">';
   html += '<p style="text-align: center; margin-bottom: 50px; font-style: italic;">Declaro ter recebido os itens acima descritos em perfeitas condições.</p>';
-  
-  html += '<div style="display: flex; justify-content: space-between; margin-bottom: 50px;">';
-  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Assinatura do Recebedor</div>';
-  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Documento (CPF / RG)</div>';
-  html += '</div>';
-  
-  html += '<div style="display: flex; justify-content: space-between;">';
-  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Data de Recebimento</div>';
-  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Assinatura do Motorista/Entregador</div>';
-  html += '</div>';
-  
-  html += '</div></div>'; // Fim do papel
+  html += '<div style="display: flex; justify-content: space-between; margin-bottom: 50px;"><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Assinatura do Recebedor</div><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Documento (CPF / RG)</div></div>';
+  html += '<div style="display: flex; justify-content: space-between;"><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Data de Recebimento</div><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Motorista/Entregador</div></div></div></div>';
 
-  // Mostra a tela igual à do relatório
   var overlay = document.getElementById('relatorioOverlay');
   if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
-  
   overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()">🖨️ Imprimir</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
   overlay.classList.add('show'); overlay.scrollTop = 0;
-
-  // 🔴 A MÁGICA: Abre a tela de impressão/PDF do celular automaticamente em 1 segundo
   setTimeout(function() { window.print(); }, 1000);
 }
 
 // ══════════════ MOTOR DOS BALÕES DE AJUDA (MOBILE TOUCH) ══════════════
 document.addEventListener('click', function(e) {
-  // Se clicou fora, fecha qualquer balão aberto
-  if (!e.target.classList.contains('help-icon')) {
-    document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove());
-    document.querySelectorAll('.help-icon.active').forEach(i => i.classList.remove('active'));
-    return;
-  }
-
-  // Se clicou no ícone
+  if (!e.target.classList.contains('help-icon')) { document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove()); document.querySelectorAll('.help-icon.active').forEach(i => i.classList.remove('active')); return; }
   var icon = e.target;
-  
-  // Se já estava aberto, fecha
-  if (icon.classList.contains('active')) {
-    icon.classList.remove('active');
-    document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove());
-    return;
-  }
-
-  // Fecha outros abertos
-  document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove());
-  document.querySelectorAll('.help-icon.active').forEach(i => i.classList.remove('active'));
-
-  // Ativa o atual
-  icon.classList.add('active');
-  var texto = icon.getAttribute('data-tooltip');
-  
-  // Cria o balão
-  var balloon = document.createElement('div');
-  balloon.className = 'tooltip-balloon';
-  balloon.textContent = texto;
-  document.body.appendChild(balloon);
-
-  // Posiciona o balão perfeitamente acima do ícone
-  var rect = icon.getBoundingClientRect();
-  balloon.style.left = (rect.left + (rect.width / 2)) + 'px';
-  balloon.style.top = (rect.top - balloon.offsetHeight - 10) + 'px';
+  if (icon.classList.contains('active')) { icon.classList.remove('active'); document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove()); return; }
+  document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove()); document.querySelectorAll('.help-icon.active').forEach(i => i.classList.remove('active'));
+  icon.classList.add('active'); var texto = icon.getAttribute('data-tooltip'); var balloon = document.createElement('div'); balloon.className = 'tooltip-balloon'; balloon.textContent = texto; document.body.appendChild(balloon);
+  var rect = icon.getBoundingClientRect(); balloon.style.left = (rect.left + (rect.width / 2)) + 'px'; balloon.style.top = (rect.top - balloon.offsetHeight - 10) + 'px';
 });
