@@ -176,41 +176,81 @@ function renderPainel(d) {
   renderProdutos(produtos); document.getElementById('syncTime').textContent = d.timestamp ? 'Atualizado: ' + d.timestamp : '';
 }
 
-// 🔥 VERSÃO NOVA COM TOTAL GLOBAL DA LOJA 🔥
 function renderProdutos(produtos) {
-  var el = document.getElementById('produtosList'); 
+  var el = document.getElementById('produtosList');
   if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Nenhum produto cadastrado</div></div>'; return; }
-  
-  // 🧠 Inteligência do Total Global: Calcula a soma de todos os lotes de forma invisível
-  var totaisAgrupados = {};
-  var baseParaCalculo = dadosEstoque ? dadosEstoque.produtos : produtos;
-  
-  baseParaCalculo.forEach(function(p) {
-     var chave = p.nome + '_' + p.marca;
-     if(!totaisAgrupados[chave]) totaisAgrupados[chave] = 0;
-     totaisAgrupados[chave] += parseFloat(p.quantidade) || 0;
+
+  // AGRUPAR por nome+marca
+  var grupos = {};
+  var ordemChaves = [];
+  produtos.forEach(function(p) {
+    var chave = (p.nome + '_' + p.marca).toUpperCase();
+    if (!grupos[chave]) {
+      grupos[chave] = {
+        nome: p.nome,
+        marca: p.marca,
+        setor: p.setor,
+        unidade: p.unidade,
+        quantidadeTotal: 0,
+        melhorStatus: 'OK',
+        melhorDias: 99999,
+        lotes: [],
+        linhas: []
+      };
+      ordemChaves.push(chave);
+    }
+    var g = grupos[chave];
+    g.quantidadeTotal += parseFloat(p.quantidade) || 0;
+    g.lotes.push(p);
+    g.linhas.push(p.linha);
+
+    // Guardar o pior status para exibir
+    var prioridade = { 'VENCIDO': 0, 'CRÍTICO': 1, 'ATENÇÃO': 2, 'MONITORAR': 3, 'OK': 4 };
+    var statusAtual = p.quantidade === 0 ? 'OK' : (p.status || 'OK');
+    if ((prioridade[statusAtual] || 4) < (prioridade[g.melhorStatus] || 4)) {
+      g.melhorStatus = statusAtual;
+    }
   });
 
   var html = '';
-  produtos.forEach(function (p) {
-    var statusCls = getStatusClass(p.status, p.quantidade); 
-    var icon = getStatusIcon(p.status, p.quantidade); 
-    var qtdCls = p.quantidade === 0 ? 'zero' : p.quantidade <= 5 ? 'low' : 'ok'; 
-    var statusLabel = p.quantidade === 0 ? 'SEM ESTOQUE' : p.status;
-    
-    // Calcula se precisa mostrar a Tag de Total
-    var chave = p.nome + '_' + p.marca;
-    var totalGeral = totaisAgrupados[chave];
-    var tagTotal = '';
-    
-    if (totalGeral > p.quantidade) {
-        tagTotal = ' <span style="color:var(--blue); font-size:0.75rem; font-weight:700; margin-left:6px;">(Total: ' + totalGeral + ' ' + p.unidade + ')</span>';
+  ordemChaves.forEach(function(chave) {
+    var g = grupos[chave];
+    var statusFinal = g.quantidadeTotal === 0 ? 'SEM ESTOQUE' : g.melhorStatus;
+    var statusCls = g.quantidadeTotal === 0 ? 'zero' : getStatusClass(g.melhorStatus, g.quantidadeTotal);
+    var icon = g.quantidadeTotal === 0 ? '🚫' : getStatusIcon(g.melhorStatus, g.quantidadeTotal);
+    var qtdCls = g.quantidadeTotal === 0 ? 'zero' : g.quantidadeTotal <= 5 ? 'low' : 'ok';
+
+    // Mostrar info de lotes se houver mais de 1
+    var loteInfo = '';
+    if (g.lotes.length > 1) {
+      loteInfo = ' <span style="color:var(--text-tertiary); font-size:0.7rem;">(' + g.lotes.length + ' lotes)</span>';
+    } else if (g.lotes[0].lote) {
+      loteInfo = '';
     }
 
-    html += '<div class="produto-card" onclick="abrirDetalhe(' + p.linha + ')"><div class="prod-icon ' + statusCls + '">' + icon + '</div><div class="prod-info"><div class="prod-nome">' + p.nome + tagTotal + '</div><div class="prod-meta">' + p.marca + ' • ' + p.setor + (p.lote ? ' • Lote: ' + p.lote : '') + '</div></div><div class="prod-right"><div class="prod-qtd ' + qtdCls + '">' + p.quantidade + ' ' + p.unidade + '</div><span class="prod-status ' + statusCls + '">' + statusLabel + '</span></div></div>';
-  }); 
+    // Clicar abre o primeiro lote (ou o com maior quantidade)
+    var linhaPrincipal = g.linhas[0];
+    var maiorQtd = 0;
+    g.lotes.forEach(function(l) {
+      if (l.quantidade > maiorQtd) { maiorQtd = l.quantidade; linhaPrincipal = l.linha; }
+    });
+
+    html += '<div class="produto-card" onclick="abrirDetalhe(' + linhaPrincipal + ')">' +
+      '<div class="prod-icon ' + statusCls + '">' + icon + '</div>' +
+      '<div class="prod-info">' +
+        '<div class="prod-nome">' + escapeHtml(g.nome) + loteInfo + '</div>' +
+        '<div class="prod-meta">' + escapeHtml(g.marca) + ' • ' + escapeHtml(g.setor) + '</div>' +
+      '</div>' +
+      '<div class="prod-right">' +
+        '<div class="prod-qtd ' + qtdCls + '">' + g.quantidadeTotal + ' ' + escapeHtml(g.unidade) + '</div>' +
+        '<span class="prod-status ' + statusCls + '">' + statusFinal + '</span>' +
+      '</div>' +
+    '</div>';
+  });
+
   el.innerHTML = html;
 }
+
 
 function getStatusClass(status, qtd) { if (qtd === 0) return 'zero'; switch (status) { case 'VENCIDO': return 'vencido'; case 'CRÍTICO': return 'critico'; case 'ATENÇÃO': return 'atencao'; case 'MONITORAR': return 'monitorar'; default: return 'ok'; } }
 function getStatusIcon(status, qtd) { if (qtd === 0) return '🚫'; switch (status) { case 'VENCIDO': return '❌'; case 'CRÍTICO': return '🔴'; case 'ATENÇÃO': return '🟡'; case 'MONITORAR': return '🔵'; default: return '✅'; } }
