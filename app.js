@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v11.0 (Latência Zero & Auditoria Smart)
+//  ESTOQUE DIGITAL — app.js v12.0 (Lanterna & Filtro de Zero Smart)
 //  Grupo Carlos Vaz — CRV/LAS
 // ══════════════════════════════════════════════════════════════
 
@@ -16,7 +16,7 @@ var CREDS_OFFLINE = {
 };
 
 var sessao = null; var dadosEstoque = null; var fotoData = ''; var fotoStream = null;
-var refreshInterval = null; var relatorioAtivo = false;
+var refreshInterval = null; var relatorioAtivo = false; var flashLigado = false;
 var html5QrcodeScannerEntrada = null; var html5QrcodeScannerSaida = null; var carrinhoSaida = [];
 
 (function () {
@@ -62,11 +62,29 @@ function logout() {
   switchTab('painel');
 }
 
+// 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Estoque Zero se existir lote com saldo)
+function limparDuplicatasZeradas(d) {
+  if (!d || !d.produtos) return d;
+  d.produtos = d.produtos.filter(function(p) {
+      if (p.quantidade > 0) return true; 
+      var temIrmao = d.produtos.some(function(ir) { return ir.quantidade > 0 && ir.codigoBarras === p.codigoBarras && ir.lote === p.lote; });
+      return !temIrmao; // Só mantém o zero se NÃO tiver irmão com saldo
+  });
+  if (d.alertas) {
+      d.alertas = d.alertas.filter(function(a) {
+          if (a.quantidade > 0) return true;
+          var mantido = d.produtos.some(function(p) { return p.nome === a.produto && p.marca === a.marca && p.quantidade === 0; });
+          return mantido;
+      });
+  }
+  return d;
+}
+
 function iniciarApp() {
   document.getElementById('ldScreen').classList.remove('hidden'); document.getElementById('mainApp').style.display = 'block'; document.getElementById('userBadge').textContent = sessao.nome;
   if (sessao.nivel === 'gestor') document.getElementById('badgeGestor').style.display = '';
   var cache = localStorage.getItem('cv_estoque_cache');
-  if(cache) { dadosEstoque = JSON.parse(cache); renderPainel(dadosEstoque); } 
+  if(cache) { dadosEstoque = limparDuplicatasZeradas(JSON.parse(cache)); renderPainel(dadosEstoque); } 
   document.getElementById('ldScreen').classList.add('hidden'); syncDados(); refreshInterval = setInterval(syncDados, 300000);
 }
 
@@ -81,6 +99,7 @@ function switchTab(tab) {
 
 function syncDados() {
   fetch(API_URL + '?sync=1').then(function (r) { return r.json(); }).then(function (d) {
+      d = limparDuplicatasZeradas(d); // Aplica a blindagem de zeros ao receber dados
       dadosEstoque = d; setBadge(true); localStorage.setItem('cv_estoque_cache', JSON.stringify(d)); renderPainel(d);
       if(document.getElementById('tabSaida').classList.contains('active')) renderSaidaList(d.produtos);
       if(document.getElementById('tabAuditoria').classList.contains('active')) renderAuditoriaList(d.produtos);
@@ -119,12 +138,26 @@ function filtrarProdutos() {
   var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.lote && p.lote.toLowerCase().indexOf(termo) > -1) || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); }); renderProdutos(filtrados);
 }
 
+// 🔦 FUNÇÃO DO FLASH
+function toggleFlash() {
+  var leitor = null;
+  if (html5QrcodeScannerEntrada && html5QrcodeScannerEntrada.getState() === 2) leitor = html5QrcodeScannerEntrada;
+  else if (html5QrcodeScannerSaida && html5QrcodeScannerSaida.getState() === 2) leitor = html5QrcodeScannerSaida;
+  
+  if (!leitor) { toast("Abra a câmera primeiro para ligar o flash."); return; }
+  flashLigado = !flashLigado;
+  
+  leitor.applyVideoConstraints({ advanced: [{ torch: flashLigado }] }).then(function() {
+    toast(flashLigado ? "🔦 Flash Ligado" : "🔦 Flash Desligado");
+  }).catch(function() { toast("⚠️ Seu aparelho bloqueou o uso do flash pelo navegador."); flashLigado = false; });
+}
+
 function iniciarScannerEntrada() {
   document.getElementById('scannerEntradaArea').style.display = 'block'; html5QrcodeScannerEntrada = new Html5Qrcode("readerEntrada");
   html5QrcodeScannerEntrada.start({ facingMode: "environment" }, { fps: 15, qrbox: { width: 280, height: 120 }, aspectRatio: 1.0, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
     function(decodedText) { pararScannerEntrada(); document.getElementById('entCodigoBarras').value = decodedText; buscarProdutoPorCodigo(decodedText); if(navigator.vibrate) navigator.vibrate(100); }, function(err) {}).catch(function(err) { toast("Erro na câmara."); pararScannerEntrada(); });
 }
-function pararScannerEntrada() { if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; }).catch(function(){}); } document.getElementById('scannerEntradaArea').style.display = 'none'; }
+function pararScannerEntrada() { flashLigado = false; if(html5QrcodeScannerEntrada) { html5QrcodeScannerEntrada.stop().then(function(){ html5QrcodeScannerEntrada.clear(); html5QrcodeScannerEntrada = null; }).catch(function(){}); } document.getElementById('scannerEntradaArea').style.display = 'none'; }
 function buscarProdutoPorCodigo(codigo) {
   if (!dadosEstoque || !codigo) return; var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === codigo; });
   if (p) { document.getElementById('entSetor').value = p.setor; document.getElementById('entProduto').value = p.nome; document.getElementById('entUnidade').value = p.unidade; document.getElementById('entMarca').value = p.marca; toast("📦 Produto reconhecido!"); }
@@ -135,7 +168,7 @@ function iniciarScannerSaida() {
   html5QrcodeScannerSaida.start({ facingMode: "environment" }, { fps: 15, qrbox: { width: 280, height: 120 }, aspectRatio: 1.0, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
     function(decodedText)  { pararScannerSaida(); var p = dadosEstoque.produtos.find(function(x) { return x.codigoBarras === decodedText; }); if(p) { adicionarAoCarrinho(p.linha); } else { toast("Código não encontrado no estoque."); } if(navigator.vibrate) navigator.vibrate(100); }, function(err) {}).catch(function(err) { toast("Erro na câmara."); pararScannerSaida(); });
 }
-function pararScannerSaida() { if(html5QrcodeScannerSaida) { html5QrcodeScannerSaida.stop().then(function(){ html5QrcodeScannerSaida.clear(); html5QrcodeScannerSaida = null; }).catch(function(){}); } document.getElementById('scannerSaidaArea').style.display = 'none'; }
+function pararScannerSaida() { flashLigado = false; if(html5QrcodeScannerSaida) { html5QrcodeScannerSaida.stop().then(function(){ html5QrcodeScannerSaida.clear(); html5QrcodeScannerSaida = null; }).catch(function(){}); } document.getElementById('scannerSaidaArea').style.display = 'none'; }
 
 function abrirDetalhe(linha) {
   if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function (x) { return x.linha === linha; }); if (!p) { toast('Produto não encontrado'); return; }
@@ -194,7 +227,6 @@ function confirmarSaidaLote() {
   if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
   var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
   
-  // 🔴 Otimização Instantânea: Ajusta localmente sem esperar o servidor
   carrinhoSaida.forEach(function(item) {
       var p = dadosEstoque.produtos.find(function(x) { return x.linha === item.linha; });
       if(p) p.quantidade -= item.quantidade; 
@@ -233,15 +265,12 @@ function enviarAuditoria() {
         fecharAuditoria(); 
         if (d.match) { showSuccess('✅', 'Tudo Certo!', d.msg); } 
         else { 
-          // Inteligência Artificial de Ajuste:
           var resp = confirm('⚠️ Divergência Detectada!\n\nA prateleira tem ' + qtd + ' itens, mas o sistema esperava ' + (qtd - d.diferenca) + '.\n\nDeseja que o App AJUSTE O SALDO da planilha agora?');
           if(resp) {
-            // 🔴 Ajuste Local Otimista
             var prod = dadosEstoque.produtos.find(function(x){ return x.linha === linha; });
             if(prod) prod.quantidade = qtd;
             renderPainel(dadosEstoque);
             showSuccess('🔄', 'Estoque Ajustado!', 'O saldo do produto foi corrigido para ' + qtd + ' unidades.');
-            // Salva em 2º Plano
             fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome }), redirect: 'follow' }).then(syncDados);
           } else { showSuccess('⚠️', 'Apenas Registrado', 'A diferença de ' + d.diferenca + ' itens foi enviada ao Gestor.'); }
         } 
@@ -255,7 +284,6 @@ function enviarEntrada() {
   
   var payload = { acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value, produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value, validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(), observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData };
   
-  // 🔴 Otimização Instantânea
   showSuccess('📦', 'Produto Registrado!', produto + ' adicionado.');
   limparFormEntrada(); switchTab('painel');
   
