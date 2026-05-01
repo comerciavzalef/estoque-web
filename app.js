@@ -252,14 +252,20 @@ function renderCarrinho() {
 }
 
 // ⚡ INTERFACE OTIMISTA (Ação Imediata no Carrinho)
+// ⚡ INTERFACE OTIMISTA (Ação Imediata no Carrinho) + GERADOR DE ROMANEIO
 function confirmarSaidaLote() {
   if (carrinhoSaida.length === 0) return; var btn = document.getElementById('btnConfirmarLote'); 
   var motivoInput = document.getElementById('loteMotivoSelect') || document.getElementById('loteMotivo');
   var obsInput = document.getElementById('loteMotivoObs');
-  var motivoFinal = (motivoInput ? motivoInput.value : 'SAÍDA'); 
-  if (obsInput && obsInput.value.trim() !== '') { motivoFinal += ' - ' + obsInput.value.trim(); }
+  var motivoValue = motivoInput ? motivoInput.value : 'SAÍDA'; 
+  var motivoFinal = motivoValue;
+  var destino = obsInput && obsInput.value.trim() !== '' ? obsInput.value.trim() : 'Não informado';
+  if (destino !== 'Não informado') { motivoFinal += ' - ' + destino; }
   
   if(btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  
+  // 🔴 SALVA OS DADOS DO CARRINHO ANTES DE LIMPAR PARA GERAR O PDF
+  var itensParaRomaneio = JSON.parse(JSON.stringify(carrinhoSaida));
   var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
   
   carrinhoSaida.forEach(function(item) {
@@ -271,7 +277,14 @@ function confirmarSaidaLote() {
   if(motivoInput) motivoInput.value = 'SAÍDA DE PEDIDO';
   if(obsInput) obsInput.value = '';
   renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
-  showSuccess('📤', 'Baixa Concluída!', 'Estoque atualizado.');
+  
+  // 🔴 SE FOR PEDIDO, GERA O COMPROVANTE DE ENTREGA / ROMANEIO
+  if (motivoValue === 'SAÍDA DE PEDIDO') {
+      showSuccess('🖨️', 'Pedido Separado!', 'Gerando comprovante de entrega...');
+      gerarComprovantePedido(itensParaRomaneio, destino);
+  } else {
+      showSuccess('📤', 'Baixa Concluída!', 'Estoque atualizado.');
+  }
 
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'saidaLote', colaborador: sessao.nome, nome: sessao.nome, itens: itensPayload }), redirect: 'follow' })
     .then(function (r) { return r.json(); }).then(function (d) { syncDados(); })
@@ -376,3 +389,72 @@ function fecharRelatorio() { relatorioAtivo = false; var sw = document.getElemen
 function showSuccess(icon, msg, detail) { document.getElementById('successIcon').textContent = icon; document.getElementById('successMsg').textContent = msg; document.getElementById('successDetail').textContent = detail || ''; var ov = document.getElementById('successOverlay'); ov.classList.add('show'); setTimeout(function () { ov.classList.remove('show'); }, 3000); }
 function toast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 3500); }
 function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// 🖨️ GERADOR DE COMPROVANTE DE ENTREGA / ROMANEIO (Estilo Apple/Premium)
+function gerarComprovantePedido(itens, destino) {
+  var hoje = new Date();
+  var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
+  var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
+
+  // Desenha o layout do papel A4 (fundo branco, letras pretas para impressora térmica ou normal)
+  var html = '<div class="rel-container" style="background: #fff; color: #000; font-family: \'Inter\', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">';
+  
+  // Cabeçalho
+  html += '<div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">';
+  html += '<h1 style="margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase;">Comprovante de Entrega</h1>';
+  html += '<p style="margin: 5px 0 0 0; font-size: 14px; font-weight: 600; color: #444;">Grupo Carlos Vaz — CRV/LAS/CENTRAL</p>';
+  html += '</div>';
+
+  // Informações do Pedido
+  html += '<div style="background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6;">';
+  html += '<strong>Data de Separação:</strong> ' + dataStr + ' às ' + horaStr + '<br>';
+  html += '<strong>Separador Responsável:</strong> ' + (sessao ? sessao.nome : '—') + '<br>';
+  html += '<strong>Destino / Cidade / Obra:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase;">' + escapeHtml(destino) + '</span><br>';
+  html += '</div>';
+
+  // Tabela de Produtos
+  html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 14px;">';
+  html += '<thead><tr style="background: #eee; border-bottom: 2px solid #000;">';
+  html += '<th style="padding: 12px 8px; text-align: left;">Qtd</th>';
+  html += '<th style="padding: 12px 8px; text-align: left;">Un</th>';
+  html += '<th style="padding: 12px 8px; text-align: left;">Produto</th>';
+  html += '<th style="padding: 12px 8px; text-align: center;">Conferido</th>';
+  html += '</tr></thead><tbody>';
+
+  itens.forEach(function(item) {
+    html += '<tr style="border-bottom: 1px solid #ddd;">';
+    html += '<td style="padding: 12px 8px; font-weight: 800; font-size: 16px;">' + item.quantidade + '</td>';
+    html += '<td style="padding: 12px 8px; color: #555;">' + escapeHtml(item.unidade) + '</td>';
+    html += '<td style="padding: 12px 8px; font-weight: 500;">' + escapeHtml(item.nome) + '</td>';
+    html += '<td style="padding: 12px 8px; text-align: center;"><div style="width: 20px; height: 20px; border: 1px solid #999; border-radius: 4px; margin: 0 auto;"></div></td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  // Área de Assinaturas
+  html += '<div style="margin-top: 40px; font-size: 13px; color: #333;">';
+  html += '<p style="text-align: center; margin-bottom: 50px; font-style: italic;">Declaro ter recebido os itens acima descritos em perfeitas condições.</p>';
+  
+  html += '<div style="display: flex; justify-content: space-between; margin-bottom: 50px;">';
+  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Assinatura do Recebedor</div>';
+  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Documento (CPF / RG)</div>';
+  html += '</div>';
+  
+  html += '<div style="display: flex; justify-content: space-between;">';
+  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Data de Recebimento</div>';
+  html += '<div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Assinatura do Motorista/Entregador</div>';
+  html += '</div>';
+  
+  html += '</div></div>'; // Fim do papel
+
+  // Mostra a tela igual à do relatório
+  var overlay = document.getElementById('relatorioOverlay');
+  if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
+  
+  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()">🖨️ Imprimir</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
+  overlay.classList.add('show'); overlay.scrollTop = 0;
+
+  // 🔴 A MÁGICA: Abre a tela de impressão/PDF do celular automaticamente em 1 segundo
+  setTimeout(function() { window.print(); }, 1000);
+}
