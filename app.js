@@ -66,7 +66,6 @@ function logout() {
 function limparDuplicatasZeradas(d) {
   if (!d || !d.produtos) return d;
 
-  // 🧠 Função auxiliar: Verifica se existe ALGUM lote deste produto com saldo positivo
   var temSaldo = function(nome, marca) {
     return d.produtos.some(function(p) { 
       return p.quantidade > 0 && p.nome === nome && p.marca === marca; 
@@ -76,12 +75,10 @@ function limparDuplicatasZeradas(d) {
   var produtosFinais = [];
   var zerosVistos = {}; 
 
-  // 1. Limpa a lista de Produtos Base
   d.produtos.forEach(function(p) {
       if (p.quantidade > 0) {
           produtosFinais.push(p); 
       } else {
-          // Só mantém a linha zerada se NÃO houver absolutamente nenhum outro lote com saldo
           if (!temSaldo(p.nome, p.marca)) {
               var chave = p.nome + "_" + p.marca;
               if (!zerosVistos[chave]) {
@@ -93,16 +90,14 @@ function limparDuplicatasZeradas(d) {
   });
   d.produtos = produtosFinais;
 
-  // 2. Limpa a lista de Alertas (A MÁGICA ACONTECE AQUI)
   if (d.alertas) {
       var alertasFinais = [];
       var alertasZerosVistos = {};
       
       d.alertas.forEach(function(a) {
           if (a.quantidade > 0) {
-              alertasFinais.push(a); // Deixa passar os críticos e vencidos com quantidade
+              alertasFinais.push(a);
           } else {
-              // 🔴 BLINDAGEM: O alerta de ZERO só passa se a função temSaldo confirmar que não há nada!
               if (!temSaldo(a.produto, a.marca)) {
                   var chave = a.produto + "_" + a.marca;
                   if (!alertasZerosVistos[chave]) {
@@ -150,16 +145,15 @@ function renderPainel(d) {
   var produtos = d.produtos || []; 
   var okCount = 0; var zeroCount = 0;
   
-  // 🧠 MÁGICA DA CONTAGEM ÚNICA (Ignora lotes para não somar 6 onde tem 2)
   var produtosUnicos = new Set();
 
   produtos.forEach(function (p) { 
-    produtosUnicos.add(p.nome + '_' + p.marca); // Agrupa
+    produtosUnicos.add(p.nome + '_' + p.marca);
     if (p.quantidade === 0) zeroCount++; 
     else if (p.status === 'OK' || p.status === 'MONITORAR') okCount++; 
   });
 
-  document.getElementById('statTotal').textContent = produtosUnicos.size; // Mostra contagem real!
+  document.getElementById('statTotal').textContent = produtosUnicos.size;
   document.getElementById('statOk').textContent = okCount; 
   document.getElementById('statAlertas').textContent = alertas.length; 
   document.getElementById('statZero').textContent = zeroCount;
@@ -180,7 +174,6 @@ function renderProdutos(produtos) {
   var el = document.getElementById('produtosList');
   if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Nenhum produto cadastrado</div></div>'; return; }
 
-  // AGRUPAR por nome+marca
   var grupos = {};
   var ordemChaves = [];
   produtos.forEach(function(p) {
@@ -204,7 +197,6 @@ function renderProdutos(produtos) {
     g.lotes.push(p);
     g.linhas.push(p.linha);
 
-    // Guardar o pior status para exibir
     var prioridade = { 'VENCIDO': 0, 'CRÍTICO': 1, 'ATENÇÃO': 2, 'MONITORAR': 3, 'OK': 4 };
     var statusAtual = p.quantidade === 0 ? 'OK' : (p.status || 'OK');
     if ((prioridade[statusAtual] || 4) < (prioridade[g.melhorStatus] || 4)) {
@@ -220,15 +212,11 @@ function renderProdutos(produtos) {
     var icon = g.quantidadeTotal === 0 ? '🚫' : getStatusIcon(g.melhorStatus, g.quantidadeTotal);
     var qtdCls = g.quantidadeTotal === 0 ? 'zero' : g.quantidadeTotal <= 5 ? 'low' : 'ok';
 
-    // Mostrar info de lotes se houver mais de 1
     var loteInfo = '';
     if (g.lotes.length > 1) {
       loteInfo = ' <span style="color:var(--text-tertiary); font-size:0.7rem;">(' + g.lotes.length + ' lotes)</span>';
-    } else if (g.lotes[0].lote) {
-      loteInfo = '';
     }
 
-    // Clicar abre o primeiro lote (ou o com maior quantidade)
     var linhaPrincipal = g.linhas[0];
     var maiorQtd = 0;
     g.lotes.forEach(function(l) {
@@ -251,7 +239,6 @@ function renderProdutos(produtos) {
   el.innerHTML = html;
 }
 
-
 function getStatusClass(status, qtd) { if (qtd === 0) return 'zero'; switch (status) { case 'VENCIDO': return 'vencido'; case 'CRÍTICO': return 'critico'; case 'ATENÇÃO': return 'atencao'; case 'MONITORAR': return 'monitorar'; default: return 'ok'; } }
 function getStatusIcon(status, qtd) { if (qtd === 0) return '🚫'; switch (status) { case 'VENCIDO': return '❌'; case 'CRÍTICO': return '🔴'; case 'ATENÇÃO': return '🟡'; case 'MONITORAR': return '🔵'; default: return '✅'; } }
 function filtrarProdutos() {
@@ -259,7 +246,6 @@ function filtrarProdutos() {
   var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.lote && p.lote.toLowerCase().indexOf(termo) > -1) || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); }); renderProdutos(filtrados);
 }
 
-// 🔦 FUNÇÃO DO FLASH
 function toggleFlash() {
   var leitor = null;
   if (html5QrcodeScannerEntrada && html5QrcodeScannerEntrada.getState() === 2) leitor = html5QrcodeScannerEntrada;
@@ -321,10 +307,33 @@ function salvarEdicao() {
 function confirmarExcluir(linha) { if (!confirm('Tem certeza que deseja excluir?')) return; fecharDetalhe(); fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'excluir', senha: sessao.senha, linha: linha }), redirect: 'follow' }).then(function (r) { return r.json(); }).then(function (d) { if (d.status === 'ok') { showSuccess('🗑️', d.mensagem, ''); syncDados(); } else { toast('Erro ao excluir'); } }).catch(function () { toast('Sem conexão'); }); }
 
 function renderSaidaList(produtos) {
-  var el = document.getElementById('saidaList'); if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📤</div><div class="empty-text">Nenhum produto disponível</div></div>'; return; }
-  var comEstoque = produtos.filter(function (p) { return p.quantidade > 0; }); if (comEstoque.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🚫</div><div class="empty-text">Estoque zerado</div></div>'; return; }
-  var html = ''; comEstoque.forEach(function (p) { html += '<div class="saida-card" onclick="adicionarAoCarrinho(' + p.linha + ')"><div class="saida-icon">📦</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><div class="saida-qtd">' + p.quantidade + ' ' + p.unidade + '</div><button class="saida-btn">+ Add</button></div>'; }); el.innerHTML = html;
+  var el = document.getElementById('saidaList');
+  if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📤</div><div class="empty-text">Nenhum produto disponível</div></div>'; return; }
+
+  var grupos = {};
+  var ordem = [];
+  produtos.forEach(function(p) {
+    if (p.quantidade <= 0) return;
+    var chave = (p.nome + '_' + p.marca).toUpperCase();
+    if (!grupos[chave]) {
+      grupos[chave] = { nome: p.nome, marca: p.marca, setor: p.setor, unidade: p.unidade, quantidadeTotal: 0, linhaMaior: p.linha, maiorQtd: 0 };
+      ordem.push(chave);
+    }
+    var g = grupos[chave];
+    g.quantidadeTotal += parseFloat(p.quantidade) || 0;
+    if (p.quantidade > g.maiorQtd) { g.maiorQtd = p.quantidade; g.linhaMaior = p.linha; }
+  });
+
+  if (ordem.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🚫</div><div class="empty-text">Estoque zerado</div></div>'; return; }
+
+  var html = '';
+  ordem.forEach(function(chave) {
+    var g = grupos[chave];
+    html += '<div class="saida-card" onclick="adicionarAoCarrinho(' + g.linhaMaior + ')"><div class="saida-icon">📦</div><div class="saida-info"><div class="saida-nome">' + escapeHtml(g.nome) + '</div><div class="saida-meta">' + escapeHtml(g.marca) + ' • ' + escapeHtml(g.setor) + '</div></div><div class="saida-qtd">' + g.quantidadeTotal + ' ' + escapeHtml(g.unidade) + '</div><button class="saida-btn">+ Add</button></div>';
+  });
+  el.innerHTML = html;
 }
+
 function filtrarSaida() { if (!dadosEstoque) return; var termo = document.getElementById('saidaSearch').value.toLowerCase().trim(); if (!termo) { renderSaidaList(dadosEstoque.produtos); return; } var filtrados = dadosEstoque.produtos.filter(function (p) { return (p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1)) && p.quantidade > 0; }); renderSaidaList(filtrados); }
 function adicionarAoCarrinho(linha) {
   if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function(x) { return x.linha === linha; }); if (!p) return; var itemExistente = carrinhoSaida.find(function(x) { return x.linha === linha; });
@@ -351,7 +360,6 @@ function confirmarSaidaLote() {
   var itensParaRomaneio = JSON.parse(JSON.stringify(carrinhoSaida));
   var itensPayload = carrinhoSaida.map(function(i) { return { linha: i.linha, quantidade: i.quantidade, motivo: motivoFinal }; });
   
-  // ⚡ OTIMISTA: Remove as quantidades locais antes do servidor
   carrinhoSaida.forEach(function(item) {
       var p = dadosEstoque.produtos.find(function(x) { return x.linha === item.linha; });
       if(p) p.quantidade -= item.quantidade; 
@@ -376,9 +384,29 @@ function confirmarSaidaLote() {
 }
 
 function renderAuditoriaList(produtos) {
-  var el = document.getElementById('auditoriaList'); if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível</div></div>'; return; }
-  var html = ''; produtos.forEach(function (p) { html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + p.linha + ')"><div class="saida-icon" style="background:var(--purple); color:#fff;">🕵️</div><div class="saida-info"><div class="saida-nome">' + p.nome + '</div><div class="saida-meta">' + p.marca + ' • ' + p.setor + '</div></div><button class="saida-btn" style="background:var(--purple-soft); color:var(--purple);">Auditar</button></div>'; }); el.innerHTML = html;
+  var el = document.getElementById('auditoriaList');
+  if (!produtos || produtos.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível</div></div>'; return; }
+
+  var grupos = {};
+  var ordem = [];
+  produtos.forEach(function(p) {
+    var chave = (p.nome + '_' + p.marca).toUpperCase();
+    if (!grupos[chave]) {
+      grupos[chave] = { nome: p.nome, marca: p.marca, setor: p.setor, linhas: [] };
+      ordem.push(chave);
+    }
+    grupos[chave].linhas.push(p.linha);
+  });
+
+  var html = '';
+  ordem.forEach(function(chave) {
+    var g = grupos[chave];
+    var linhaPrincipal = g.linhas[0];
+    html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + linhaPrincipal + ')"><div class="saida-icon" style="background:var(--purple); color:#fff;">🕵️</div><div class="saida-info"><div class="saida-nome">' + escapeHtml(g.nome) + '</div><div class="saida-meta">' + escapeHtml(g.marca) + ' • ' + escapeHtml(g.setor) + '</div></div><button class="saida-btn" style="background:var(--purple-soft); color:var(--purple);">Auditar</button></div>';
+  });
+  el.innerHTML = html;
 }
+
 function filtrarAuditoria() { if (!dadosEstoque) return; var termo = document.getElementById('auditoriaSearch').value.toLowerCase().trim(); if (!termo) { renderAuditoriaList(dadosEstoque.produtos); return; } var filtrados = dadosEstoque.produtos.filter(function (p) { return p.nome.toLowerCase().indexOf(termo) > -1 || p.marca.toLowerCase().indexOf(termo) > -1 || p.setor.toLowerCase().indexOf(termo) > -1 || (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1); }); renderAuditoriaList(filtrados); }
 function abrirAuditoriaModal(linha) {
   if (!dadosEstoque) return; var p = dadosEstoque.produtos.find(function(x) { return x.linha === linha; }); if (!p) return; document.getElementById('auditoriaProdNome').textContent = p.nome; document.getElementById('auditoriaProdSetor').textContent = p.marca + ' • ' + p.setor; document.getElementById('auditoriaProdLinha').value = linha; document.getElementById('auditoriaQtdFisica').value = ''; document.getElementById('auditoriaModal').classList.add('show');
@@ -413,7 +441,6 @@ function enviarEntrada() {
   
   var payload = { acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome, setor: document.getElementById('entSetor').value, produto: produto, marca: document.getElementById('entMarca').value.trim(), quantidade: qtd, unidade: document.getElementById('entUnidade').value, validade: document.getElementById('entValidade').value, lote: document.getElementById('entLote').value.trim(), observacoes: document.getElementById('entObs').value.trim(), codigoBarras: document.getElementById('entCodigoBarras').value.trim(), foto: fotoData };
   
-  // ⚡ A MÁGICA DA INTERFACE OTIMISTA (A tela atualiza antes do Google salvar)
   if(!dadosEstoque.produtos) dadosEstoque.produtos = [];
   dadosEstoque.produtos.unshift({
     linha: Date.now(), 
@@ -422,7 +449,7 @@ function enviarEntrada() {
     status: 'OK', validade: payload.validade, lote: payload.lote, codigoBarras: payload.codigoBarras
   });
   dadosEstoque = limparDuplicatasZeradas(dadosEstoque);
-  renderPainel(dadosEstoque); // Mostra na tela na hora!
+  renderPainel(dadosEstoque);
 
   showSuccess('📦', 'Produto Registrado!', produto + ' adicionado.');
   limparFormEntrada(); switchTab('painel');
