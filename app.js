@@ -62,22 +62,27 @@ function logout() {
   switchTab('painel');
 }
 
-// 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Zeros Duplicados)
+// 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Zeros Duplicados e Falsos Zeros)
 function limparDuplicatasZeradas(d) {
   if (!d || !d.produtos) return d;
 
-  var produtosFinais = [];
-  var zerosVistos = {}; // Memória para garantir que só aparece 1 zerado por produto
+  // 🧠 Função auxiliar: Verifica se existe ALGUM lote deste produto com saldo positivo
+  var temSaldo = function(nome, marca) {
+    return d.produtos.some(function(p) { 
+      return p.quantidade > 0 && p.nome === nome && p.marca === marca; 
+    });
+  };
 
+  var produtosFinais = [];
+  var zerosVistos = {}; 
+
+  // 1. Limpa a lista de Produtos Base
   d.produtos.forEach(function(p) {
       if (p.quantidade > 0) {
           produtosFinais.push(p); 
       } else {
-          var temIrmaoComSaldo = d.produtos.some(function(ir) { 
-              return ir.quantidade > 0 && ir.nome === p.nome && ir.marca === p.marca; 
-          });
-          
-          if (!temIrmaoComSaldo) {
+          // Só mantém a linha zerada se NÃO houver absolutamente nenhum outro lote com saldo
+          if (!temSaldo(p.nome, p.marca)) {
               var chave = p.nome + "_" + p.marca;
               if (!zerosVistos[chave]) {
                   zerosVistos[chave] = true;
@@ -88,17 +93,22 @@ function limparDuplicatasZeradas(d) {
   });
   d.produtos = produtosFinais;
 
+  // 2. Limpa a lista de Alertas (A MÁGICA ACONTECE AQUI)
   if (d.alertas) {
       var alertasFinais = [];
       var alertasZerosVistos = {};
+      
       d.alertas.forEach(function(a) {
           if (a.quantidade > 0) {
-              alertasFinais.push(a);
+              alertasFinais.push(a); // Deixa passar os críticos e vencidos com quantidade
           } else {
-              var chave = a.produto + "_" + a.marca;
-              if (!alertasZerosVistos[chave]) {
-                  alertasZerosVistos[chave] = true;
-                  alertasFinais.push(a);
+              // 🔴 BLINDAGEM: O alerta de ZERO só passa se a função temSaldo confirmar que não há nada!
+              if (!temSaldo(a.produto, a.marca)) {
+                  var chave = a.produto + "_" + a.marca;
+                  if (!alertasZerosVistos[chave]) {
+                      alertasZerosVistos[chave] = true;
+                      alertasFinais.push(a);
+                  }
               }
           }
       });
