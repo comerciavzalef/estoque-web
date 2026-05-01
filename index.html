@@ -129,9 +129,11 @@
         </div>
         
         <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
-          <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-          <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerEntrada()" type="button">Parar Câmera</button>
-        </div>
+          <!-- Para a tela de Entrada -->
+<div style="display: flex; gap: 10px; margin-top: 15px;">
+  <button type="button" class="cam-btn" onclick="toggleFlash()" style="flex: 1; background: #333;">🔦 Flash</button>
+  <button type="button" class="cam-btn" onclick="pararScannerEntrada()" style="flex: 1; background: #2c2c2e;">⏹️ Parar</button>
+</div>
 
         <div class="ios-card-row"><div class="ios-row-title">Setor</div>
           <select id="entSetor" class="form-field">
@@ -178,8 +180,11 @@
 
       <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
         <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-        <button class="cam-btn" style="margin-top:10px; width:100%; justify-content:center;" onclick="pararScannerSaida()" type="button">Parar Câmera</button>
-      </div>
+        <!-- Para a tela de Entrada -->
+<div style="display: flex; gap: 10px; margin-top: 15px;">
+  <button type="button" class="cam-btn" onclick="toggleFlash()" style="flex: 1; background: #333;">🔦 Flash</button>
+  <button type="button" class="cam-btn" onclick="pararScannerEntrada()" style="flex: 1; background: #2c2c2e;">⏹️ Parar</button>
+</div>
 
       <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px);">
         <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>)</div>
