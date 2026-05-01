@@ -63,20 +63,55 @@ function logout() {
 }
 
 // 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Estoque Zero se existir lote com saldo)
+// 🔴 INTELIGÊNCIA DE AGRUPAMENTO (Oculta Zeros Duplicados)
 function limparDuplicatasZeradas(d) {
   if (!d || !d.produtos) return d;
-  d.produtos = d.produtos.filter(function(p) {
-      if (p.quantidade > 0) return true; 
-      var temIrmao = d.produtos.some(function(ir) { return ir.quantidade > 0 && ir.codigoBarras === p.codigoBarras && ir.lote === p.lote; });
-      return !temIrmao; // Só mantém o zero se NÃO tiver irmão com saldo
+
+  var produtosFinais = [];
+  var zerosVistos = {}; // Memória para garantir que só aparece 1 zerado por produto
+
+  // Passo 1: Limpar os produtos da Base de Dados
+  d.produtos.forEach(function(p) {
+      if (p.quantidade > 0) {
+          produtosFinais.push(p); // Produtos com saldo sempre aparecem (para ver lotes diferentes)
+      } else {
+          // É um produto zerado. 
+          // 1º Verifica se o app já tem alguma linha desse mesmo produto com saldo > 0
+          var temIrmaoComSaldo = d.produtos.some(function(ir) { 
+              return ir.quantidade > 0 && ir.nome === p.nome && ir.marca === p.marca; 
+          });
+          
+          if (!temIrmaoComSaldo) {
+              // 2º Se está totalmente zerado, mostramos apenas UMA vez!
+              var chave = p.nome + "_" + p.marca;
+              if (!zerosVistos[chave]) {
+                  zerosVistos[chave] = true; // Grava na memória que já mostrou esse zero
+                  produtosFinais.push(p);
+              }
+          }
+      }
   });
+  d.produtos = produtosFinais;
+
+  // Passo 2: Limpar os Alertas do Painel
   if (d.alertas) {
-      d.alertas = d.alertas.filter(function(a) {
-          if (a.quantidade > 0) return true;
-          var mantido = d.produtos.some(function(p) { return p.nome === a.produto && p.marca === a.marca && p.quantidade === 0; });
-          return mantido;
+      var alertasFinais = [];
+      var alertasZerosVistos = {};
+
+      d.alertas.forEach(function(a) {
+          if (a.quantidade > 0) {
+              alertasFinais.push(a);
+          } else {
+              var chave = a.produto + "_" + a.marca;
+              if (!alertasZerosVistos[chave]) {
+                  alertasZerosVistos[chave] = true;
+                  alertasFinais.push(a);
+              }
+          }
       });
+      d.alertas = alertasFinais;
   }
+
   return d;
 }
 
