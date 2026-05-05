@@ -97,12 +97,16 @@
   </div>
 
   <div class="container">
-    <!-- ══════ TAB NAV ══════ -->
-    <div class="tab-nav">
-      <button class="tab-btn active" onclick="switchTab('painel')" id="tabPainel">Painel</button>
-      <button class="tab-btn" onclick="switchTab('entrada')" id="tabEntrada">Entrada</button>
-      <button class="tab-btn" onclick="switchTab('saida')" id="tabSaida">Saída</button>
-      <button class="tab-btn" onclick="switchTab('auditoria')" id="tabAuditoria">Auditoria</button>
+    <!-- ══════ TAB NAV (v15.0: agora com scroll horizontal e 6 abas) ══════ -->
+    <div class="tab-nav-wrap">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('painel')" id="tabPainel">Painel</button>
+        <button class="tab-btn" onclick="switchTab('entrada')" id="tabEntrada">Entrada</button>
+        <button class="tab-btn" onclick="switchTab('saida')" id="tabSaida">Saída</button>
+        <button class="tab-btn" onclick="switchTab('rapida')" id="tabRapida">⚡ Rápida</button>
+        <button class="tab-btn" onclick="switchTab('auditoria')" id="tabAuditoria">Auditoria</button>
+        <button class="tab-btn" onclick="switchTab('historico')" id="tabHistorico">Histórico</button>
+      </div>
     </div>
 
     <!-- ══════ TAB: PAINEL ══════ -->
@@ -165,7 +169,9 @@
         <div class="ios-card-row"><div class="ios-row-title">Produto <span style="color:var(--red);">*</span></div><input type="text" id="entProduto" class="form-field" placeholder="Nome do item"></div>
         <div class="ios-card-row"><div class="ios-row-title">Marca</div><input type="text" id="entMarca" class="form-field" placeholder="Opcional"></div>
         <div class="ios-card-row"><div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div><input type="number" id="entQtd" class="form-field" placeholder="0"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Unidade</div><select id="entUnidade" class="form-field"><option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option></select></div>
+        <div class="ios-card-row"><div class="ios-row-title">Unidade</div><select id="entUnidade" class="form-field">
+          <option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="FARDO">FARDO</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
+        </select></div>
         <div class="ios-card-row"><div class="ios-row-title">Validade</div><input type="date" id="entValidade" class="form-field"></div>
         <div class="ios-card-row"><div class="ios-row-title">Lote</div><input type="text" id="entLote" class="form-field" placeholder="Ref/Lote"></div>
         <div class="ios-card-row"><div class="ios-row-title">Observações</div><input type="text" id="entObs" class="form-field" placeholder="Opcional"></div>
@@ -214,7 +220,7 @@
       </div>
 
       <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
-        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>)</div>
+        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar quantidade ou unidade.">?</span></div>
         <div id="cartList" style="margin-bottom: 24px;"></div>
         
         <div style="padding-top: 20px; border-top: .5px solid var(--border);">
@@ -225,8 +231,16 @@
             <option value="AVARIA">⚠️ Avaria / Perda</option>
             <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
           </select>
-          <label class="form-label" style="margin-bottom:8px;">Destino / Observação</label>
-          <input type="text" id="loteMotivoObs" class="form-field" placeholder="Ex: Para qual obra? (Opcional)" style="margin-bottom:24px;">
+
+          <!-- 🔴 v15.0 — Destino com select padrão (sem OBRAS) + campo livre -->
+          <div id="destinoBox" style="display:none;">
+            <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
+            <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
+              <option value="">Selecione o destino…</option>
+            </select>
+            <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:24px;">
+          </div>
+
           <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
       </div>
@@ -237,6 +251,27 @@
       </div>
       <div id="saidaList"></div>
       
+    </div>
+
+    <!-- ══════ TAB: SAÍDA RÁPIDA (M6 — v15.0) ══════ -->
+    <div class="tab-content" id="contentRapida">
+      <div class="section-label">
+        ⚡ SAÍDA RÁPIDA
+        <span class="help-icon" data-tooltip="Busque qualquer produto. Se não existir, cadastre na hora e dê saída em segundos.">?</span>
+      </div>
+
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="rapidaSearch" class="form-field search-icon-input" placeholder="Buscar produto ou cadastrar novo…" oninput="filtrarSaidaRapida()">
+        </div>
+      </div>
+
+      <div id="btnCadastroRapidoBox" style="display:none; margin-bottom:16px;">
+        <button class="submit-btn" id="btnCadastroRapidoAcao" style="background:var(--purple);">➕ Cadastrar e dar saída</button>
+        <p style="color:var(--text-tertiary); font-size:0.7rem; text-align:center; margin-top:8px;">O produto será criado com qtd 0 e ficará pendente de auditoria.</p>
+      </div>
+
+      <div id="rapidaList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
     </div>
 
     <!-- ══════ TAB: AUDITORIA ══════ -->
@@ -253,6 +288,13 @@
       <div id="auditoriaList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
     </div>
 
+    <!-- ══════ TAB: HISTÓRICO POR MOVIMENTO (M1 — v15.0) ══════ -->
+    <div class="tab-content" id="contentHistorico">
+      <div id="historicoContent">
+        <p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -266,7 +308,7 @@
       <input type="hidden" id="auditoriaProdLinha">
       <div style="margin-top:24px; padding-top:20px; border-top:.5px solid var(--border);">
         <label class="section-label" style="display:block; text-align:center; margin-bottom:12px;">Quantidade Real na Prateleira</label>
-        <input type="number" id="auditoriaQtdFisica" class="form-field" placeholder="0" style="text-align:center; font-size:2rem; font-weight:800; color:var(--blue); padding:12px;">
+        <input type="number" id="auditoriaQtdFisica" class="form-field" inputmode="decimal" placeholder="0" style="text-align:center; font-size:2rem; font-weight:800; color:var(--blue); padding:12px;">
       </div>
       <button class="submit-btn" id="btnSalvarAuditoria" onclick="enviarAuditoria()" style="background:var(--indigo); margin-top:24px;">Verificar Divergência</button>
     </div>
