@@ -35,7 +35,7 @@ var STATUS_ORDEM = { 'VENCIDO':0, 'CRÍTICO':1, 'ATENÇÃO':2, 'MONITORAR':3, 'O
 
 // 🔴 v15.0 — Destinos padrão (sem OBRAS — m2)
 var DESTINOS_PADRAO = [
-  'IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…'
+  'IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…',
 ];
 
 var sessao = null;
