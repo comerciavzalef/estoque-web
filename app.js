@@ -213,6 +213,11 @@ function persistirCarrinho(){
   try { localStorage.setItem(CART_KEY, JSON.stringify(carrinhoSaida)); }
   catch(e){}
 }
+
+function persistirCarrinho(){
+  try { localStorage.setItem(CART_KEY, JSON.stringify(carrinhoSaida)); }
+  catch(e){}
+}
 function restaurarCarrinho(){
   try {
     var raw = localStorage.getItem(CART_KEY);
@@ -223,16 +228,6 @@ function restaurarCarrinho(){
   } catch(e){ carrinhoSaida = []; }
 }
 
-
-function restaurarCarrinho(){
-  try {
-    var raw = localStorage.getItem(CART_KEY);
-    if (raw) {
-      var arr = JSON.parse(raw);
-      if (Array.isArray(arr)) carrinhoSaida = arr;
-    }
-  } catch(e){ carrinhoSaida = []; }
-}
 
 // ══════════════════════════════════════════════════════════════
 // 🔴 v15.4 — ITENS EM FALTA
@@ -2733,11 +2728,12 @@ function escapeHtml(str) {
 // ══════════════════════════════════════════════════════════════
 // 🔴 v15.6 — HISTÓRICO DE COMPROVANTES (últimos 30 dias)
 // ══════════════════════════════════════════════════════════════
-function salvarComprovanteServidor(dados){
+ffunction salvarComprovanteServidor(dados){
+  var payload = Object.assign({ acao: 'salvarComprovante' }, dados);
   fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ acao: 'salvarComprovante', ...dados }),
+    body: JSON.stringify(payload),
     redirect: 'follow'
   }).catch(function(){ /* segue silencioso */ });
 }
