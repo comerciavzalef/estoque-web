@@ -212,14 +212,16 @@ function persistirAuditoriasPendentes(){
   catch(e){}
 }
 function restaurarAuditoriasPendentes(){
-  try {
-    var raw = localStorage.getItem(AUDIT_PENDING_KEY);
-    if (raw) {
-      var arr = JSON.parse(raw);
-      if (Array.isArray(arr)) auditoriasPendentes = arr;
+  try{
+    var raw = localStorage.getItem('cv_auditoria_pendente');
+    if(!raw) return;
+    var dados = JSON.parse(raw);
+    if(dados && dados.itens && dados.itens.length > 0){
+      mostrarBannerAuditoria(dados.itens.length);
     }
-  } catch(e){ auditoriasPendentes = []; }
+  }catch(e){ console.warn('Erro ao restaurar auditorias:', e); }
 }
+
 function adicionarAuditoriaPendente(linha, nome, qtdSolicitada, qtdEstoque){
   var existe = auditoriasPendentes.find(function(a){ return a.linha === linha; });
   if(existe){
