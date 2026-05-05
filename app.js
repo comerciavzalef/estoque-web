@@ -35,8 +35,15 @@ var STATUS_ORDEM = { 'VENCIDO':0, 'CRÍTICO':1, 'ATENÇÃO':2, 'MONITORAR':3, 'O
 
 // 🔴 v15.0 — Destinos padrão (sem OBRAS — m2)
 var DESTINOS_PADRAO = [
-  'IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…',
+  'IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…'
 ];
+
+// 🔴 v15.1 — Setores de Requisição (padrão da prefeitura/órgão)
+var SETORES_REQ_KEY = 'cv_estoque_setores_req';
+var SETORES_REQ_PADRAO = [
+  'EDUCAÇÃO','SAÚDE','ASSISTÊNCIA SOCIAL','ADMINISTRAÇÃO','INFRAESTRUTURA'
+];
+
 
 var sessao = null;
 var dadosEstoque = null;
@@ -1009,15 +1016,16 @@ function confirmarSaidaLote() {
   if (carrinhoSaida.length === 0) return;
   var btn = document.getElementById('btnConfirmarLote');
 
-  // 🔴 v15.0 — Double-click guard
+  // Double-click guard
   if(btn && btn.disabled) return;
 
   var motivoInput = document.getElementById('loteMotivoSelect') || document.getElementById('loteMotivo');
+  var setorSelect = document.getElementById('loteSetorSelect');
   var destinoSelect = document.getElementById('loteDestinoSelect');
   var destinoInput = document.getElementById('loteMotivoObs');
   var motivoValue = motivoInput ? motivoInput.value : 'SAÍDA';
 
-  // 🔴 v15.0 — Destino obrigatório APENAS para SAÍDA DE PEDIDO
+  // Resolve destino
   var destinoFinal = '';
   if(destinoSelect){
     var sel = destinoSelect.value;
@@ -1032,14 +1040,34 @@ function confirmarSaidaLote() {
     destinoFinal = destinoInput.value.trim();
   }
 
-  if(motivoValue === 'SAÍDA DE PEDIDO' && !destinoFinal){
-    toast('⚠️ Informe o destino do pedido!');
-    if(destinoInput){ destinoInput.focus(); }
-    return;
+  // 🔴 v15.1 — Resolve setor solicitante
+  var setorFinal = '';
+  if(setorSelect){
+    if(setorSelect.value === '__novo__'){
+      toast('⚠️ Confirme o novo setor antes de prosseguir.');
+      return;
+    }
+    setorFinal = setorSelect.value || '';
+  }
+
+  // 🔴 v15.1 — Validações para SAÍDA DE PEDIDO
+  if(motivoValue === 'SAÍDA DE PEDIDO'){
+    if(!setorFinal){
+      toast('⚠️ Selecione o setor solicitante!');
+      if(setorSelect){ setorSelect.focus(); }
+      return;
+    }
+    if(!destinoFinal){
+      toast('⚠️ Informe o destino do pedido!');
+      if(destinoInput){ destinoInput.focus(); }
+      return;
+    }
   }
   if(!destinoFinal) destinoFinal = 'Não informado';
 
+  // 🔴 v15.1 — Motivo final concatenado: SAÍDA DE PEDIDO - [SETOR] - [DESTINO]
   var motivoFinal = motivoValue;
+  if(setorFinal) motivoFinal += ' - ' + setorFinal;
   if (destinoFinal !== 'Não informado') { motivoFinal += ' - ' + destinoFinal; }
 
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
@@ -1055,7 +1083,6 @@ function confirmarSaidaLote() {
     };
   });
 
-  // Atualiza estoque local de forma otimista (em unidade base)
   carrinhoSaida.forEach(function (item) {
     var p = dadosEstoque.produtos.find(function (x) { return x.linha === item.linha; });
     if (p) p.quantidade -= (item.quantidadeBase || (item.quantidade * (item.fator||1)));
@@ -1064,14 +1091,16 @@ function confirmarSaidaLote() {
   carrinhoSaida = [];
   persistirCarrinho();
   if (motivoInput) motivoInput.value = 'SAÍDA DE PEDIDO';
+  if (setorSelect) setorSelect.value = '';
   if (destinoSelect) destinoSelect.value = '';
   if (destinoInput) destinoInput.value = '';
   toggleDestinoOutro();
+  toggleNovoSetorBox();
   renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
 
   if (motivoValue === 'SAÍDA DE PEDIDO') {
     showSuccess('🖨️', 'Pedido Separado!', 'Gerando comprovante de entrega...');
-    gerarComprovantePedido(itensParaRomaneio, destinoFinal);
+    gerarComprovantePedido(itensParaRomaneio, destinoFinal, setorFinal);
   } else {
     showSuccess('📤', 'Baixa Concluída!', 'Estoque atualizado.');
   }
@@ -1095,52 +1124,112 @@ function confirmarSaidaLote() {
     });
 }
 
+
 // 🔴 v15.0 — Popular select de destinos sem OBRAS
+// 🔴 v15.1 — Popula destinos E setores de requisição
 function popularDestinosSelect(){
   var sel = document.getElementById('loteDestinoSelect');
-  if(!sel) return;
-  if(sel.options.length > 1) return; // já populado
-  sel.innerHTML = '<option value="">Selecione o destino…</option>';
-  DESTINOS_PADRAO.forEach(function(d){
-    var opt = document.createElement('option');
-    opt.value = d; opt.textContent = d;
-    sel.appendChild(opt);
-  });
-  sel.addEventListener('change', toggleDestinoOutro);
-  // Mostrar destino só quando motivo = SAÍDA DE PEDIDO
+  if(sel && sel.options.length <= 1){
+    sel.innerHTML = '<option value="">Selecione o destino…</option>';
+    DESTINOS_PADRAO.forEach(function(d){
+      var opt = document.createElement('option');
+      opt.value = d; opt.textContent = d;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', toggleDestinoOutro);
+  }
+
+  // 🔴 v15.1 — Setores
+  popularSetoresReqSelect();
+
   var motivoSel = document.getElementById('loteMotivoSelect');
   if(motivoSel){
     motivoSel.addEventListener('change', toggleDestinoVisibilidade);
     toggleDestinoVisibilidade();
   }
 }
-function toggleDestinoVisibilidade(){
-  var motivoSel = document.getElementById('loteMotivoSelect');
-  var box = document.getElementById('destinoBox');
-  if(!motivoSel || !box) return;
-  if(motivoSel.value === 'SAÍDA DE PEDIDO'){
-    box.style.display = 'block';
-  } else {
-    box.style.display = 'none';
+
+// 🔴 v15.1 — Setores de Requisição
+function getSetoresReq(){
+  try {
+    var custom = JSON.parse(localStorage.getItem(SETORES_REQ_KEY) || '[]');
+    if(!Array.isArray(custom)) custom = [];
+    // mescla e tira duplicatas
+    var todos = SETORES_REQ_PADRAO.concat(custom);
+    var unicos = [];
+    todos.forEach(function(s){
+      var up = (s||'').toString().trim().toUpperCase();
+      if(up && unicos.indexOf(up) === -1) unicos.push(up);
+    });
+    return unicos;
+  } catch(e){ return SETORES_REQ_PADRAO.slice(); }
+}
+function salvarSetorCustom(nome){
+  var up = (nome||'').toString().trim().toUpperCase();
+  if(!up) return false;
+  if(SETORES_REQ_PADRAO.indexOf(up) >= 0) return false; // já é padrão
+  try {
+    var custom = JSON.parse(localStorage.getItem(SETORES_REQ_KEY) || '[]');
+    if(!Array.isArray(custom)) custom = [];
+    if(custom.indexOf(up) === -1){
+      custom.push(up);
+      localStorage.setItem(SETORES_REQ_KEY, JSON.stringify(custom));
+    }
+    return true;
+  } catch(e){ return false; }
+}
+function popularSetoresReqSelect(){
+  var sel = document.getElementById('loteSetorSelect');
+  if(!sel) return;
+  var atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione o setor…</option>';
+  getSetoresReq().forEach(function(s){
+    var opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  var optAdd = document.createElement('option');
+  optAdd.value = '__novo__';
+  optAdd.textContent = '➕ Adicionar novo setor…';
+  sel.appendChild(optAdd);
+  if(atual && atual !== '__novo__') sel.value = atual;
+
+  // bind change só uma vez
+  if(!sel.dataset.bound){
+    sel.addEventListener('change', toggleNovoSetorBox);
+    sel.dataset.bound = '1';
   }
 }
-function toggleDestinoOutro(){
-  var sel = document.getElementById('loteDestinoSelect');
-  var inp = document.getElementById('loteMotivoObs');
-  if(!sel || !inp) return;
-  var v = sel.value;
-  if(v === 'OUTRO…' || v === 'OUTRO...'){
+function toggleNovoSetorBox(){
+  var sel = document.getElementById('loteSetorSelect');
+  var inp = document.getElementById('loteSetorNovo');
+  var btn = document.getElementById('btnConfirmarNovoSetor');
+  if(!sel || !inp || !btn) return;
+  if(sel.value === '__novo__'){
     inp.style.display = 'block';
-    inp.placeholder = 'Digite o destino…';
-    inp.focus();
-  } else if(v && v !== ''){
-    inp.style.display = 'none';
+    btn.style.display = 'block';
     inp.value = '';
+    setTimeout(function(){ inp.focus(); }, 50);
   } else {
-    inp.style.display = 'block';
-    inp.placeholder = 'Destino livre (opcional)';
+    inp.style.display = 'none';
+    btn.style.display = 'none';
   }
 }
+function confirmarNovoSetor(){
+  var inp = document.getElementById('loteSetorNovo');
+  var sel = document.getElementById('loteSetorSelect');
+  if(!inp || !sel) return;
+  var nome = (inp.value||'').trim().toUpperCase();
+  if(!nome){ toast('Digite o nome do setor.'); inp.focus(); return; }
+  if(nome.length < 2){ toast('Nome muito curto.'); return; }
+  salvarSetorCustom(nome);
+  popularSetoresReqSelect();
+  sel.value = nome;
+  inp.style.display = 'none';
+  document.getElementById('btnConfirmarNovoSetor').style.display = 'none';
+  toast('✅ Setor "' + nome + '" adicionado.');
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // AUDITORIA
@@ -1866,7 +1955,7 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function gerarComprovantePedido(itens, destino) {
+function gerarComprovantePedido(itens, destino, setor) {
   var hoje = new Date();
   var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
   var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
@@ -1878,6 +1967,9 @@ function gerarComprovantePedido(itens, destino) {
   html += '<div style="background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6;">';
   html += '<strong>Data de Separação:</strong> ' + dataStr + ' às ' + horaStr + '<br>';
   html += '<strong>Separador Responsável:</strong> ' + (sessao ? sessao.nome : '—') + '<br>';
+  if(setor){
+    html += '<strong>Setor Solicitante:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase; color:#0a84ff;">' + escapeHtml(setor) + '</span><br>';
+  }
   html += '<strong>Destino / Obra:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase;">' + escapeHtml(destino) + '</span><br></div>';
   html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 14px;">';
   html += '<thead><tr style="background: #eee; border-bottom: 2px solid #000;"><th style="padding: 12px 8px; text-align: left;">Qtd</th><th style="padding: 12px 8px; text-align: left;">Un</th><th style="padding: 12px 8px; text-align: left;">Produto</th><th style="padding: 12px 8px; text-align: center;">Conferido</th></tr></thead><tbody>';
