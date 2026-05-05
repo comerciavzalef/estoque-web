@@ -426,28 +426,6 @@ function syncDados() {
     });
 }
 
-  carrinhoSaida.forEach(function (item) {
-    var unTxt = item.unidadeDigitada || item.unidade || '';
-    var overCls = item.overStock ? ' over-stock' : '';
-    var pendCls = item.pendenteCadastro ? ' pendente-cadastro' : '';
-    var overTag = '';
-    if(item.pendenteCadastro){
-      overTag = '<span class="cart-over-tag" style="background:var(--orange); color:#fff;">📝 SEM CADASTRO</span>';
-    } else if(item.overStock){
-      overTag = '<span class="cart-over-tag">⚠️ Over</span>';
-    }
-    h += '<div class="cart-item'+overCls+pendCls+'" onclick="abrirMiniModalEdicao('+item.linha+')">' +
-         '<div class="cart-info"><strong>' + escapeHtml(item.nome) + '</strong>' +
-         '<small>'+item.quantidade+' '+escapeHtml(unTxt)+
-           (item.unidadeDigitada && item.unidadeDigitada !== item.unidadeBase && !item.pendenteCadastro ? ' (= '+item.quantidadeBase+' '+escapeHtml(item.unidadeBase)+')' : '')+
-           (item.pendenteCadastro ? ' • ⚠️ Cadastrar na auditoria' : ' • Estoque: ' + item.max + ' ' + escapeHtml(item.unidadeBase || item.unidade)) + '</small></div>' +
-         '<div class="cart-tap-hint">'+overTag+'<span class="cart-edit-icon">✏️</span></div>' +
-         '</div>';
-  });
-
-  persistirCarrinho();
-}
-
 function setBadge(on) {
   var b = document.getElementById('badgeStatus');
   b.textContent = on ? 'Online' : 'Offline';
