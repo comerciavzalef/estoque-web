@@ -55,7 +55,7 @@ var flashLigado = false;
 var html5QrcodeScannerEntrada = null;
 var html5QrcodeScannerSaida = null;
 var carrinhoSaida = [];
-var auditoriasPendentes = []; // 🔴 v15.0
+var sPendentes = []; // 🔴 v15.0
 var miniModalContext = null;  // 🔴 v15.0 — contexto do mini-modal aberto
 var ptrState = { startY:0, currentY:0, pulling:false, ready:false }; // 🔴 v15.0
 var audioCtx = null;          // 🔴 v15.0 — Web Audio API singleton
@@ -82,9 +82,9 @@ document.addEventListener('DOMContentLoaded', function () {
   if (window.GodModeTracker) {
     GodModeTracker.init({ idCliente: 'crv', aplicativo: 'Estoque' });
   }
-  // 🔴 v15.0 — Restaura carrinho e auditorias pendentes do localStorage
+  // 🔴 v15.0 — Restaura carrinho e s pendentes do localStorage
   restaurarCarrinho();
-  restaurarAuditoriasPendentes();
+  restaurarsPendentes();
 });
 
 function toggleSenha() {
@@ -1334,6 +1334,37 @@ function enviarAuditoria() {
     })
     .catch(function () { toast('Sem conexão'); })
     .finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
+}
+
+// 🔴 v15.1 — Mostra/esconde a caixa de destino+setor conforme o motivo
+function toggleDestinoVisibilidade(){
+  var motivoSel = document.getElementById('loteMotivoSelect');
+  var box = document.getElementById('destinoBox');
+  if(!motivoSel || !box) return;
+  if(motivoSel.value === 'SAÍDA DE PEDIDO'){
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+// 🔴 v15.1 — Alterna comportamento do input livre quando seleciona "OUTRO…"
+function toggleDestinoOutro(){
+  var sel = document.getElementById('loteDestinoSelect');
+  var inp = document.getElementById('loteMotivoObs');
+  if(!sel || !inp) return;
+  var v = sel.value;
+  if(v === 'OUTRO…' || v === 'OUTRO...'){
+    inp.style.display = 'block';
+    inp.placeholder = 'Digite o destino…';
+    setTimeout(function(){ inp.focus(); }, 50);
+  } else if(v && v !== ''){
+    inp.style.display = 'none';
+    inp.value = '';
+  } else {
+    inp.style.display = 'block';
+    inp.placeholder = 'Destino livre (opcional)';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
