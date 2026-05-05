@@ -1253,20 +1253,26 @@ function confirmarSaidaLote() {
 
   var faltasParaRomaneio = JSON.parse(JSON.stringify(itensFalta)); // 🔴 v15.4
   var itensParaRomaneio = JSON.parse(JSON.stringify(carrinhoSaida));
-  var itensPayload = carrinhoSaida.map(function (i) {
-    return {
-      linha: i.linha,
-      quantidade: i.quantidade,
-      unidadeDigitada: i.unidadeDigitada || i.unidadeBase,
-      fator: i.fator || 1,
-      motivo: motivoFinal
-    };
-  });
+    // 🔴 v15.6 — Filtra itens "sem cadastro" — eles vão SÓ pro comprovante, não geram movimento
+  var itensPayload = carrinhoSaida
+    .filter(function(i){ return !i.pendenteCadastro && i.linha > 0; })
+    .map(function (i) {
+      return {
+        linha: i.linha,
+        quantidade: i.quantidade,
+        unidadeDigitada: i.unidadeDigitada || i.unidadeBase,
+        fator: i.fator || 1,
+        motivo: motivoFinal
+      };
+    });
 
+    // 🔴 v15.6 — Só reduz estoque de itens cadastrados
   carrinhoSaida.forEach(function (item) {
+    if(item.pendenteCadastro || item.linha <= 0) return;
     var p = dadosEstoque.produtos.find(function (x) { return x.linha === item.linha; });
     if (p) p.quantidade -= (item.quantidadeBase || (item.quantidade * (item.fator||1)));
   });
+
 
   carrinhoSaida = [];
   persistirCarrinho();
@@ -1280,9 +1286,18 @@ function confirmarSaidaLote() {
   toggleNovoSetorBox();
   renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
 
-      if (motivoValue === 'SAÍDA DE PEDIDO') {
+        if (motivoValue === 'SAÍDA DE PEDIDO') {
     showSuccess('🖨️', 'Pedido Separado!', 'Gerando comprovante de entrega...');
     gerarComprovantePedido(itensParaRomaneio, destinoFinal, setorFinal, faltasParaRomaneio);
+    // 🔴 v15.6 — Salva comprovante na planilha
+    salvarComprovanteServidor({
+      operador: sessao.nome,
+      motivo: motivoValue,
+      setor: setorFinal,
+      destino: destinoFinal,
+      itens: itensParaRomaneio,
+      faltas: faltasParaRomaneio
+    });
   } else {
     showSuccess('📤', 'Baixa Concluída!', 'Estoque atualizado.');
   }
@@ -2682,6 +2697,66 @@ function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// ══════════════════════════════════════════════════════════════
+// 🔴 v15.6 — HISTÓRICO DE COMPROVANTES (últimos 30 dias)
+// ══════════════════════════════════════════════════════════════
+function salvarComprovanteServidor(dados){
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ acao: 'salvarComprovante', ...dados }),
+    redirect: 'follow'
+  }).catch(function(){ /* segue silencioso */ });
+}
+
+var listaComprovantes = [];
+function carregarComprovantes(){
+  var el = document.getElementById('comprovantesList');
+  if(!el) return;
+  el.innerHTML = '<div class="empty-state"><div class="ptr-spinner" style="margin:0 auto 12px;"></div><div class="empty-text">Carregando...</div></div>';
+  fetch(API_URL + '?comprovantes=1')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      listaComprovantes = d.comprovantes || [];
+      renderComprovantes();
+    })
+    .catch(function(){
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Erro ao carregar. Verifique conexão.</div></div>';
+    });
+}
+
+function renderComprovantes(){
+  var el = document.getElementById('comprovantesList');
+  if(!el) return;
+  if(listaComprovantes.length === 0){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-text">Nenhum comprovante nos últimos 30 dias</div></div>';
+    return;
+  }
+  var html = '<div class="section-label">📜 Últimos 30 dias ('+listaComprovantes.length+' comprovantes)</div>';
+  listaComprovantes.forEach(function(c, idx){
+    var totalLabel = c.totalEntregues + ' entregue' + (c.totalEntregues !== 1 ? 's' : '');
+    if(c.totalFaltas > 0) totalLabel += ' • ' + c.totalFaltas + ' em falta';
+    html += '<div class="hist-mov-card" style="cursor:pointer;" onclick="reimprimirComprovante('+idx+')">'+
+      '<div class="hmov-header">'+
+        '<div class="hmov-prod">📦 '+escapeHtml(c.destino || '—')+'</div>'+
+        '<button class="hmov-print-btn" onclick="event.stopPropagation(); reimprimirComprovante('+idx+')">🖨️</button>'+
+      '</div>'+
+      '<div class="hmov-meta">'+escapeHtml(c.setor || '—')+' • '+escapeHtml(c.operador)+'</div>'+
+      '<div class="hmov-row"><span>Data:</span><b>'+escapeHtml(c.dataHora)+'</b></div>'+
+      '<div class="hmov-row"><span>Itens:</span><b>'+totalLabel+'</b></div>'+
+      (c.totalFaltas > 0 ? '<div class="hmov-motivo" style="background:rgba(255,69,58,0.1); color:var(--red);">⚠️ '+c.totalFaltas+' iten'+(c.totalFaltas>1?'s':'')+' em falta</div>' : '')+
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function reimprimirComprovante(idx){
+  var c = listaComprovantes[idx];
+  if(!c){ toast('Comprovante não encontrado'); return; }
+  gerarComprovantePedido(c.itens || [], c.destino, c.setor, c.faltas || []);
+}
+
 
 function gerarComprovantePedido(itens, destino, setor, faltas) {
   faltas = faltas || [];
