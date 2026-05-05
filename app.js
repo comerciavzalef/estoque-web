@@ -1682,6 +1682,119 @@ function confirmarCadastroRapido(){
   });
 }
 
+// 🔴 v15.2 — Exportar lista da Saída Rápida em CSV
+function exportarSaidaRapidaCSV(){
+  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Sem dados pra exportar'); return; }
+  var termo = (document.getElementById('rapidaSearch')||{value:''}).value.toLowerCase().trim();
+  var produtos = dadosEstoque.produtos;
+  if(termo){
+    produtos = produtos.filter(function(p){
+      return p.nome.toLowerCase().indexOf(termo) > -1 ||
+             (p.marca && p.marca.toLowerCase().indexOf(termo) > -1) ||
+             p.setor.toLowerCase().indexOf(termo) > -1 ||
+             (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
+    });
+  }
+  if(produtos.length === 0){ toast('Nenhum produto pra exportar'); return; }
+
+  // Agrupa por nome+marca
+  var grupos = {};
+  produtos.forEach(function(p){
+    var chave = (p.nome+'_'+p.marca).toUpperCase();
+    if(!grupos[chave]){
+      grupos[chave] = { nome:p.nome, marca:p.marca, setor:p.setor, unidade:p.unidade, qtd:0, status:p.status||'OK', validade:p.validade||'', lote:p.lote||'' };
+    }
+    grupos[chave].qtd += parseFloat(p.quantidade)||0;
+  });
+  var lista = Object.keys(grupos).map(function(k){ return grupos[k]; });
+  lista.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
+
+  // Monta CSV (separador ; pra Excel BR)
+  var linhas = ['Produto;Marca;Setor;Quantidade;Unidade;Status;Validade;Lote'];
+  lista.forEach(function(g){
+    var row = [
+      '"'+(g.nome||'').replace(/"/g,'""')+'"',
+      '"'+(g.marca||'').replace(/"/g,'""')+'"',
+      '"'+(g.setor||'').replace(/"/g,'""')+'"',
+      g.qtd,
+      '"'+(g.unidade||'')+'"',
+      '"'+(g.status||'OK')+'"',
+      '"'+(g.validade||'')+'"',
+      '"'+(g.lote||'').replace(/"/g,'""')+'"'
+    ].join(';');
+    linhas.push(row);
+  });
+  var csv = '\uFEFF' + linhas.join('\r\n'); // BOM pra Excel abrir UTF-8
+
+  var hoje = new Date();
+  var dataArq = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+  var nome = 'estoque_saida_rapida_'+dataArq+'.csv';
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  toast('✅ '+lista.length+' produtos exportados');
+}
+
+// 🔴 v15.2 — Imprimir lista da Saída Rápida
+function imprimirSaidaRapida(){
+  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Sem dados pra imprimir'); return; }
+  var termo = (document.getElementById('rapidaSearch')||{value:''}).value.toLowerCase().trim();
+  var produtos = dadosEstoque.produtos;
+  if(termo){
+    produtos = produtos.filter(function(p){
+      return p.nome.toLowerCase().indexOf(termo) > -1 ||
+             (p.marca && p.marca.toLowerCase().indexOf(termo) > -1) ||
+             p.setor.toLowerCase().indexOf(termo) > -1;
+    });
+  }
+  if(produtos.length === 0){ toast('Nada pra imprimir'); return; }
+
+  var grupos = {};
+  produtos.forEach(function(p){
+    var chave = (p.nome+'_'+p.marca).toUpperCase();
+    if(!grupos[chave]){
+      grupos[chave] = { nome:p.nome, marca:p.marca, setor:p.setor, unidade:p.unidade, qtd:0, status:p.status||'OK' };
+    }
+    grupos[chave].qtd += parseFloat(p.quantidade)||0;
+  });
+  var lista = Object.keys(grupos).map(function(k){ return grupos[k]; });
+  lista.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
+
+  var hoje = new Date();
+  var dataStr = String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear();
+  var horaStr = String(hoje.getHours()).padStart(2,'0')+':'+String(hoje.getMinutes()).padStart(2,'0');
+
+  var w = window.open('','_blank','width=900,height=700');
+  if(!w){ toast('Pop-up bloqueado. Permita pop-ups.'); return; }
+  var rows = '';
+  lista.forEach(function(g, i){
+    rows += '<tr><td>'+(i+1)+'</td><td>'+escapeHtml(g.nome)+'</td><td>'+escapeHtml(g.marca||'—')+'</td><td>'+escapeHtml(g.setor)+'</td><td style="text-align:right; font-weight:700;">'+g.qtd+'</td><td>'+escapeHtml(g.unidade)+'</td><td>'+escapeHtml(g.status)+'</td><td style="width:30px; border:1px solid #999;"></td></tr>';
+  });
+
+  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Saída Rápida</title>'+
+    '<style>body{font-family:-apple-system,Arial,sans-serif; color:#000; padding:20px; max-width:900px; margin:0 auto;}'+
+    'h1{font-size:18px; margin:0 0 4px 0; text-transform:uppercase;}'+
+    'h2{font-size:13px; margin:0 0 16px 0; color:#666; font-weight:500;}'+
+    '.head{text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:14px;}'+
+    'table{width:100%; border-collapse:collapse; font-size:12px;}'+
+    'th{background:#eee; border-bottom:2px solid #000; padding:8px 6px; text-align:left;}'+
+    'td{padding:6px; border-bottom:1px solid #ddd;}'+
+    '.foot{margin-top:24px; font-size:11px; color:#666; text-align:center;}'+
+    '@media print{body{padding:0;}}'+
+    '</style></head><body>'+
+    '<div class="head"><h1>Estoque Digital — CRV/LAS</h1><h2>Lista de Saída Rápida · '+dataStr+' às '+horaStr+(termo?' · Filtro: "'+escapeHtml(termo)+'"':'')+'</h2></div>'+
+    '<table><thead><tr><th>#</th><th>Produto</th><th>Marca</th><th>Setor</th><th style="text-align:right;">Qtd</th><th>Un</th><th>Status</th><th>✓</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="foot">Total: '+lista.length+' produtos · Operador: '+escapeHtml(sessao?sessao.nome:'—')+'</div>'+
+    '</body></html>';
+  w.document.open(); w.document.write(doc); w.document.close();
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 300);
+}
+
+
 // ══════════════════════════════════════════════════════════════
 // 🔴 v15.0 — HISTÓRICO POR MOVIMENTO (M1)
 // ══════════════════════════════════════════════════════════════
