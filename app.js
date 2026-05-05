@@ -31,6 +31,7 @@ var CREDS_OFFLINE = {
   "TASSIO": "53c822e4be542a84710324d05458d7c155d9a0a3ee2c8ea6a621c3b426b123d",
   "AMARAL": "d16bcb871bbfe495833cee0fd592bbf47540fee7801ade3d8ccf7b97372ad042",
   "ALEX":   "e3f961a998c170860de4cab5c8f9548522a1938d6599cf40f827333b503d8eed",
+  "LAURA":  "776eef5b0172b1949cae6c3ca5ad14560f2c151dc9e23f5caa6786969ee13469",
   "GESTOR": "704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157"
 };
 
@@ -506,31 +507,59 @@ function switchTab(tab) {
   if (tab === 'comprovantes') { carregarComprovantes(); }
 }
 
-function syncDados() {
-  fetch(API_URL + '?sync=1')
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      d = limparDuplicatasZeradas(d);
-      dadosEstoque = d; setBadge(true);
-      localStorage.setItem('cv_estoque_cache', JSON.stringify(d));
-      // 🔴 v15.0 — Atualiza max do carrinho com base no estoque atual
+// 🚀 v15.7 — Sync com cache local (UX Flash)
+var SYNC_CACHE_KEY = 'cv_estoque_sync_cache';
+var SYNC_CACHE_TIME_KEY = 'cv_estoque_sync_time';
+
+function syncDados(forceFresh) {
+  // 1️⃣ INSTANTÂNEO: carrega cache local primeiro
+  if(!forceFresh){
+    try {
+      var cached = localStorage.getItem(SYNC_CACHE_KEY);
+      var cacheTime = localStorage.getItem(SYNC_CACHE_TIME_KEY);
+      if(cached && cacheTime){
+        var idade = Date.now() - parseInt(cacheTime);
+        var idadeSegundos = Math.floor(idade / 1000);
+        var d = JSON.parse(cached);
+        dadosEstoque = d;
+        sincronizarCarrinhoComEstoque();
+        renderPainel(d);
+        console.log('⚡ Cache local exibido (idade: ' + idadeSegundos + 's)');
+      }
+    } catch(e){ console.warn('Cache local falhou:', e); }
+  }
+
+  // 2️⃣ SEGUNDO PLANO: busca dados frescos
+  fetch(API_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      dadosEstoque = d;
+      try {
+        localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify(d));
+        localStorage.setItem(SYNC_CACHE_TIME_KEY, Date.now().toString());
+      } catch(e){ console.warn('Falha ao salvar cache:', e); }
+
       sincronizarCarrinhoComEstoque();
       renderPainel(d);
-      if (document.getElementById('tabSaida') && document.getElementById('tabSaida').classList.contains('active')) {
-        renderSaidaList(d.produtos); renderCarrinho();
+
+      // Re-renderiza aba ativa
+      var abaAtiva = document.querySelector('.tab-btn.active');
+      if(abaAtiva){
+        var idAba = abaAtiva.id || '';
+        if(idAba === 'tabSaida') renderSaidaList(d.produtos);
+        else if(idAba === 'tabAuditoria') renderAuditoriaList(d.produtos);
+        else if(idAba === 'tabRapida') renderSaidaRapidaList(d.produtos);
+        else if(idAba === 'tabHistorico') renderHistoricoCards();
       }
-      if (document.getElementById('tabAuditoria') && document.getElementById('tabAuditoria').classList.contains('active')) {
-        renderAuditoriaList(d.produtos);
-      }
-      if (document.getElementById('tabRapida') && document.getElementById('tabRapida').classList.contains('active')) {
-        renderSaidaRapidaList(d.produtos);
-      }
-      if (document.getElementById('tabHistorico') && document.getElementById('tabHistorico').classList.contains('active')) {
-        renderHistoricoCards();
+
+      setBadge(true);
+      if (window.GodModeTracker) {
+        GodModeTracker.log({ tipo: 'SYNC', mensagem: 'Sync concluído: ' + (d.produtos||[]).length + ' produtos' });
       }
     })
     .catch(function (err) {
       setBadge(false);
+      console.warn('Sync falhou (usando cache):', err);
       if (window.GodModeTracker) {
         GodModeTracker.log({ tipo: 'ALERTA', mensagem: 'Falha ao sincronizar estoque: ' + (err && err.message ? err.message : 'rede') });
       }
