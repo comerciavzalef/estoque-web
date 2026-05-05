@@ -2279,7 +2279,7 @@ function imprimirMovimento(tipoId, idx){
   w.document.open();
   w.document.write(doc);
   w.document.close();
-  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 300);
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 1500);
 }
 
 // ══════════════════════════════════════════════════════════════
