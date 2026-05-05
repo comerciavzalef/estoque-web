@@ -19,7 +19,7 @@ var CART_KEY = 'cv_estoque_carrinho';
 var AUDIT_PENDING_KEY = 'cv_auditoria_pendente';
 var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao'; // 🔴 v15.2 — persiste o texto colado
 var FALTAS_KEY = 'cv_estoque_faltas'; // 🔴 v15.4 — itens em falta no carrinho
-var GEMINI_API_KEY = 'AIzaSyCZV3Gjky6rFHiC46FDVodk1Kjowe7Z1L8'; // 🔴 v15.5 — OCR via Gemini
+var GEMINI_API_KEY = 'AIzaSyCAXte0VgEJ_JWFWewtrlCg1BtqbOaRKbc'; // 🔴 v15.5 — OCR via Gemini
 var GEMINI_MODEL = 'gemini-2.0-flash'; // 🔴 v15.5 — modelo estável e gratuito
 
 
