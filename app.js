@@ -40,6 +40,10 @@ var DESTINOS_PADRAO = [
   'IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…'
 ];
 
+// 🔴 v15.3 — Destinos de Consumo Interno
+var DESTINOS_CONSUMO = ['SÍTIO', 'ESCRITÓRIO', 'MERCADO', 'OUTRO…'];
+
+
 // 🔴 v15.1 — Setores de Requisição (padrão da prefeitura/órgão)
 var SETORES_REQ_KEY = 'cv_estoque_setores_req';
 var SETORES_REQ_PADRAO = [
@@ -1081,7 +1085,7 @@ function confirmarSaidaLote() {
     setorFinal = setorSelect.value || '';
   }
 
-  // 🔴 v15.1 — Validações para SAÍDA DE PEDIDO
+   // 🔴 v15.3 — Validações para SAÍDA DE PEDIDO e CONSUMO INTERNO
   if(motivoValue === 'SAÍDA DE PEDIDO'){
     if(!setorFinal){
       toast('⚠️ Selecione o setor solicitante!');
@@ -1091,6 +1095,13 @@ function confirmarSaidaLote() {
     if(!destinoFinal){
       toast('⚠️ Informe o destino do pedido!');
       if(destinoInput){ destinoInput.focus(); }
+      return;
+    }
+  }
+  if(motivoValue === 'CONSUMO INTERNO' || motivoValue === 'CONSUMO'){
+    if(!destinoFinal){
+      toast('⚠️ Informe o destino do consumo (Sítio / Escritório / Mercado)!');
+      if(destinoSelect){ destinoSelect.focus(); }
       return;
     }
   }
@@ -1368,16 +1379,43 @@ function enviarAuditoria() {
 }
 
 // 🔴 v15.1 — Mostra/esconde a caixa de destino+setor conforme o motivo
+// 🔴 v15.3 — Mostra/esconde destino conforme o motivo (PEDIDO ou CONSUMO)
 function toggleDestinoVisibilidade(){
   var motivoSel = document.getElementById('loteMotivoSelect');
   var box = document.getElementById('destinoBox');
+  var setorBox = document.getElementById('setorBox'); // se existir
+  var destinoSel = document.getElementById('loteDestinoSelect');
   if(!motivoSel || !box) return;
-  if(motivoSel.value === 'SAÍDA DE PEDIDO'){
+
+  var motivo = motivoSel.value;
+
+  if(motivo === 'SAÍDA DE PEDIDO'){
     box.style.display = 'block';
+    if(setorBox) setorBox.style.display = 'block';
+    popularDestinosPorMotivo('PEDIDO');
+  } else if(motivo === 'CONSUMO INTERNO' || motivo === 'CONSUMO'){
+    box.style.display = 'block';
+    if(setorBox) setorBox.style.display = 'none'; // setor não é obrigatório aqui
+    popularDestinosPorMotivo('CONSUMO');
   } else {
     box.style.display = 'none';
+    if(setorBox) setorBox.style.display = 'none';
   }
 }
+
+// 🔴 v15.3 — Popula o select de destino conforme o motivo escolhido
+function popularDestinosPorMotivo(tipo){
+  var sel = document.getElementById('loteDestinoSelect');
+  if(!sel) return;
+  var lista = (tipo === 'CONSUMO') ? DESTINOS_CONSUMO : DESTINOS_PADRAO;
+  sel.innerHTML = '<option value="">Selecione o destino…</option>';
+  lista.forEach(function(d){
+    var opt = document.createElement('option');
+    opt.value = d; opt.textContent = d;
+    sel.appendChild(opt);
+  });
+}
+
 
 // 🔴 v15.1 — Alterna comportamento do input livre quando seleciona "OUTRO…"
 function toggleDestinoOutro(){
