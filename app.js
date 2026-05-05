@@ -1386,6 +1386,7 @@ function salvarSetorCustom(nome){
     return true;
   } catch(e){ return false; }
 }
+
 function popularSetoresReqSelect(){
   var sel = document.getElementById('loteSetorSelect');
   if(!sel) return;
@@ -1400,18 +1401,35 @@ function popularSetoresReqSelect(){
   optAdd.value = '__novo__';
   optAdd.textContent = '➕ Adicionar novo setor…';
   sel.appendChild(optAdd);
-  if(atual && atual !== '__novo__') sel.value = atual;
+
+  // 🚀 v15.8 — Opção de remover setor customizado
+  var optRemover = document.createElement('option');
+  optRemover.value = '__remover__';
+  optRemover.textContent = '🗑️ Remover um setor…';
+  sel.appendChild(optRemover);
+
+  if(atual && atual !== '__novo__' && atual !== '__remover__') sel.value = atual;
 
   if(!sel.dataset.bound){
     sel.addEventListener('change', toggleNovoSetorBox);
     sel.dataset.bound = '1';
   }
 }
+
 function toggleNovoSetorBox(){
   var sel = document.getElementById('loteSetorSelect');
   var inp = document.getElementById('loteSetorNovo');
   var btn = document.getElementById('btnConfirmarNovoSetor');
-  if(!sel || !inp || !btn) return;
+  if(!sel) return;
+
+  // 🚀 v15.8 — Caso especial: remover setor
+  if(sel.value === '__remover__'){
+    abrirModalRemoverSetor();
+    sel.value = '';
+    return;
+  }
+
+  if(!inp || !btn) return;
   if(sel.value === '__novo__'){
     inp.style.display = 'block';
     btn.style.display = 'block';
@@ -1422,6 +1440,7 @@ function toggleNovoSetorBox(){
     btn.style.display = 'none';
   }
 }
+
 function confirmarNovoSetor(){
   var inp = document.getElementById('loteSetorNovo');
   var sel = document.getElementById('loteSetorSelect');
@@ -1436,6 +1455,80 @@ function confirmarNovoSetor(){
   document.getElementById('btnConfirmarNovoSetor').style.display = 'none';
   toast('✅ Setor "' + nome + '" adicionado.');
 }
+
+// 🚀 v15.8 — Remover setor customizado
+function abrirModalRemoverSetor(){
+  var customizados = [];
+  try {
+    customizados = JSON.parse(localStorage.getItem(SETORES_REQ_KEY) || '[]');
+    if(!Array.isArray(customizados)) customizados = [];
+  } catch(e){ customizados = []; }
+
+  if(customizados.length === 0){
+    toast('Não há setores customizados para remover. Os padrões não podem ser apagados.');
+    return;
+  }
+
+  var modal = document.getElementById('removerSetorModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'removerSetorModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+
+  var listaHtml = '';
+  customizados.forEach(function(s){
+    listaHtml += '<div onclick="confirmarRemoverSetor(\''+s.replace(/'/g,"\\'")+'\')" '+
+      'style="display:flex; justify-content:space-between; align-items:center; '+
+      'padding:14px 16px; margin-bottom:8px; background:rgba(255,69,58,0.08); '+
+      'border:1px solid rgba(255,69,58,0.3); border-radius:10px; cursor:pointer; '+
+      'transition:all .2s;" '+
+      'onmouseover="this.style.background=\'rgba(255,69,58,0.15)\'" '+
+      'onmouseout="this.style.background=\'rgba(255,69,58,0.08)\'">'+
+      '<span style="font-weight:600; color:var(--text-primary);">'+escapeHtml(s)+'</span>'+
+      '<span style="color:var(--red); font-size:1.2rem;">🗑️</span>'+
+    '</div>';
+  });
+
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharRemoverSetor()"></div>'+
+    '<div class="mm-card">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">🗑️ Remover Setor</div>'+
+        '<div class="mm-sub">Toque no setor que deseja remover. Setores padrão não podem ser apagados.</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        listaHtml+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharRemoverSetor()">Fechar</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+
+function fecharRemoverSetor(){
+  var modal = document.getElementById('removerSetorModal');
+  if(modal) modal.classList.remove('show');
+}
+
+function confirmarRemoverSetor(nome){
+  if(!confirm('Tem certeza que deseja remover o setor "'+nome+'"?')) return;
+  try {
+    var custom = JSON.parse(localStorage.getItem(SETORES_REQ_KEY) || '[]');
+    if(!Array.isArray(custom)) custom = [];
+    custom = custom.filter(function(s){ return s !== nome; });
+    localStorage.setItem(SETORES_REQ_KEY, JSON.stringify(custom));
+  } catch(e){
+    toast('Erro ao remover setor');
+    return;
+  }
+  fecharRemoverSetor();
+  popularSetoresReqSelect();
+  toast('🗑️ Setor "'+nome+'" removido');
+}
+
 
 // ══════════════════════════════════════════════════════════════
 // AUDITORIA
@@ -1539,10 +1632,11 @@ function enviarAuditoria() {
     .finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
 }
 
-function toggleDestinoVisibilidade(){
+ffunction toggleDestinoVisibilidade(){
   var motivoSel = document.getElementById('loteMotivoSelect');
   var box = document.getElementById('destinoBox');
   var setorBox = document.getElementById('setorBox');
+  var setorSelect = document.getElementById('loteSetorSelect');
   if(!motivoSel || !box) return;
 
   var motivo = motivoSel.value;
@@ -1554,12 +1648,16 @@ function toggleDestinoVisibilidade(){
   } else if(motivo === 'CONSUMO INTERNO' || motivo === 'CONSUMO'){
     box.style.display = 'block';
     if(setorBox) setorBox.style.display = 'none';
+    // 🚀 v15.8 — Limpa o setor para não enviar lixo no comprovante
+    if(setorSelect) setorSelect.value = '';
     popularDestinosPorMotivo('CONSUMO');
   } else {
     box.style.display = 'none';
     if(setorBox) setorBox.style.display = 'none';
+    if(setorSelect) setorSelect.value = '';
   }
 }
+
 
 function popularDestinosPorMotivo(tipo){
   var sel = document.getElementById('loteDestinoSelect');
@@ -2795,15 +2893,31 @@ function gerarComprovantePedido(itens, destino, setor, faltas) {
   if(itens.length > 0){
     html += '<h2 style="font-size:15px; margin:20px 0 8px; padding:8px 12px; background:#e8f5e9; border-left:4px solid #2e7d32; color:#2e7d32; text-transform:uppercase;">✅ Itens Entregues ('+itens.length+')</h2>';
     html += '<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">';
-    html += '<thead><tr style="background:#eee; border-bottom:2px solid #000;"><th style="padding:12px 8px; text-align:left;">Qtd</th><th style="padding:12px 8px; text-align:left;">Un</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:center;">Conferido</th></tr></thead><tbody>';
-    itens.forEach(function (item) {
+    html += '<thead><tr style="background:#eee; border-bottom:2px solid #000;"><th style="padding:12px 8px; text-align:left;" colspan="2">Quantidade</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:center;">Conferido</th></tr></thead><tbody>';
+
+        itens.forEach(function (item) {
       var unMostrar = item.unidadeDigitada || item.unidade || item.unidadeBase || '';
+      var qtdTexto = item.quantidade + ' ' + escapeHtml(unMostrar);
+
+      // 🚀 v15.8 — Mostra conversão igual ao carrinho: "2 CX (= 24 UN)"
+      var temConversao = item.unidadeDigitada &&
+                         item.unidadeBase &&
+                         item.unidadeDigitada !== item.unidadeBase &&
+                         item.fator && item.fator !== 1 &&
+                         !item.pendenteCadastro;
+
+      if(temConversao){
+        qtdTexto = item.quantidade + ' ' + escapeHtml(item.unidadeDigitada) +
+                   ' <span style="font-size:12px; color:#666; font-weight:500;">(= ' +
+                   item.quantidadeBase + ' ' + escapeHtml(item.unidadeBase) + ')</span>';
+      }
+
       html += '<tr style="border-bottom:1px solid #ddd;">';
-      html += '<td style="padding:12px 8px; font-weight:800; font-size:16px;">' + item.quantidade + '</td>';
-      html += '<td style="padding:12px 8px; color:#555;">' + escapeHtml(unMostrar) + '</td>';
+      html += '<td style="padding:12px 8px; font-weight:800; font-size:16px;" colspan="2">' + qtdTexto + '</td>';
       html += '<td style="padding:12px 8px; font-weight:500;">' + escapeHtml(item.nome) + '</td>';
       html += '<td style="padding:12px 8px; text-align:center;"><div style="width:20px; height:20px; border:1px solid #999; border-radius:4px; margin:0 auto;"></div></td></tr>';
     });
+    
     html += '</tbody></table>';
   }
 
