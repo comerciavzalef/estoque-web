@@ -17,6 +17,8 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbyvw-6uBYct475K2nv5J-U2z3
 var SESSION_KEY = 'cv_estoque_sessao';
 var CART_KEY = 'cv_estoque_carrinho';
 var AUDIT_PENDING_KEY = 'cv_auditoria_pendente';
+var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao'; // 🔴 v15.2 — persiste o texto colado
+
 
 var CREDS_OFFLINE = {
   'LUIZ':   '4e94d7cf6a395fd8e12ad235143b25e60de3a9ac18a5cb6d090325138d22a7a1',
@@ -424,12 +426,25 @@ function syncDados() {
     });
 }
 
-function sincronizarCarrinhoComEstoque(){
-  if(!dadosEstoque || !dadosEstoque.produtos) return;
-  carrinhoSaida.forEach(function(item){
-    var p = dadosEstoque.produtos.find(function(x){ return x.linha === item.linha; });
-    if(p){ item.max = p.quantidade; item.unidadeBase = p.unidade; }
+  carrinhoSaida.forEach(function (item) {
+    var unTxt = item.unidadeDigitada || item.unidade || '';
+    var overCls = item.overStock ? ' over-stock' : '';
+    var pendCls = item.pendenteCadastro ? ' pendente-cadastro' : '';
+    var overTag = '';
+    if(item.pendenteCadastro){
+      overTag = '<span class="cart-over-tag" style="background:var(--orange); color:#fff;">📝 SEM CADASTRO</span>';
+    } else if(item.overStock){
+      overTag = '<span class="cart-over-tag">⚠️ Over</span>';
+    }
+    h += '<div class="cart-item'+overCls+pendCls+'" onclick="abrirMiniModalEdicao('+item.linha+')">' +
+         '<div class="cart-info"><strong>' + escapeHtml(item.nome) + '</strong>' +
+         '<small>'+item.quantidade+' '+escapeHtml(unTxt)+
+           (item.unidadeDigitada && item.unidadeDigitada !== item.unidadeBase && !item.pendenteCadastro ? ' (= '+item.quantidadeBase+' '+escapeHtml(item.unidadeBase)+')' : '')+
+           (item.pendenteCadastro ? ' • ⚠️ Cadastrar na auditoria' : ' • Estoque: ' + item.max + ' ' + escapeHtml(item.unidadeBase || item.unidade)) + '</small></div>' +
+         '<div class="cart-tap-hint">'+overTag+'<span class="cart-edit-icon">✏️</span></div>' +
+         '</div>';
   });
+
   persistirCarrinho();
 }
 
@@ -996,11 +1011,28 @@ function renderCarrinho() {
 }
 
 function abrirMiniModalEdicao(linha){
+  var item = carrinhoSaida.find(function(x){ return x.linha === linha; });
+  if(!item) return;
+  
+  // 🔴 Item placeholder (não cadastrado) — abre modal simplificado
+  if(item.pendenteCadastro){
+    abrirMiniModal({
+      linha: item.linha,
+      nome: item.nome + ' (sem cadastro)',
+      unidadeBase: item.unidadeBase,
+      estoqueAtual: 0,
+      fatoresConversao: {},
+      quantidadePre: item.quantidade,
+      unidadePre: item.unidadeDigitada || item.unidadeBase,
+      fatorPre: item.fator || 1,
+      edicao: true
+    });
+    return;
+  }
+  
   if(!dadosEstoque) return;
   var p = dadosEstoque.produtos.find(function(x){ return x.linha === linha; });
   if(!p){ toast('Produto não encontrado'); return; }
-  var item = carrinhoSaida.find(function(x){ return x.linha === linha; });
-  if(!item) return;
   abrirMiniModal({
     linha: p.linha,
     nome: p.nome,
@@ -1013,6 +1045,7 @@ function abrirMiniModalEdicao(linha){
     edicao: true
   });
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // CONFIRMAR SAÍDA EM LOTE
@@ -1739,7 +1772,7 @@ function exportarSaidaRapidaCSV(){
   toast('✅ '+lista.length+' produtos exportados');
 }
 
-// 🔴 v15.2 — IMPORTAR LISTA DE SAÍDA (cola texto e gera carrinho)
+// 🔴 v15.2 — IMPORTAR LISTA DE SAÍDA (com persistência + placeholder pra não-cadastrados)
 function abrirImportarLista(){
   var modal = document.getElementById('importListaModal');
   if(!modal){
@@ -1748,32 +1781,51 @@ function abrirImportarLista(){
     modal.className = 'mini-modal';
     document.body.appendChild(modal);
   }
+  // 🔴 Restaura texto salvo (rascunho)
+  var rascunho = '';
+  try { rascunho = localStorage.getItem(IMPORT_LISTA_KEY) || ''; } catch(e){}
+
   modal.innerHTML =
     '<div class="mm-backdrop" onclick="fecharImportarLista()"></div>'+
     '<div class="mm-card" style="max-width:520px;">'+
       '<div class="mm-header">'+
         '<div class="mm-title">📋 Importar Lista de Saída</div>'+
-        '<div class="mm-sub">Cole a lista de produtos (1 por linha)</div>'+
+        '<div class="mm-sub">Cole a lista (1 produto por linha)</div>'+
       '</div>'+
       '<div class="mm-body">'+
         '<label class="mm-label">Formato aceito:</label>'+
         '<div style="background:rgba(118,118,128,.15); padding:10px; border-radius:8px; font-family:monospace; font-size:0.75rem; margin-bottom:14px; line-height:1.6; color:var(--text-secondary);">'+
-          'ARROZ 5<br>FEIJÃO 10<br>ÓLEO 2 L<br>5 SABÃO<br><span style="color:var(--text-tertiary);">(quantidade pode vir antes ou depois do nome)</span>'+
+          'ARROZ 5<br>FEIJÃO 10<br>ÓLEO 2 L<br>5 SABÃO<br><span style="color:var(--text-tertiary);">(qtd antes ou depois do nome)</span>'+
         '</div>'+
         '<label class="mm-label">Cole sua lista aqui:</label>'+
-        '<textarea id="importListaTxt" class="form-field" rows="10" style="font-family:monospace; font-size:0.85rem; min-height:200px; resize:vertical;" placeholder="ARROZ 5&#10;FEIJÃO 10&#10;ÓLEO 2&#10;..." autofocus></textarea>'+
+        '<textarea id="importListaTxt" class="form-field" rows="10" style="font-family:monospace; font-size:0.85rem; min-height:200px; resize:vertical;" placeholder="ARROZ 5&#10;FEIJÃO 10&#10;ÓLEO 2&#10;..." oninput="salvarRascunhoLista()">'+escapeHtml(rascunho)+'</textarea>'+
+        (rascunho ? '<div style="font-size:0.7rem; color:var(--green); margin-top:4px;">💾 Rascunho restaurado automaticamente · <a href="#" onclick="event.preventDefault(); limparRascunhoLista();" style="color:var(--red);">limpar</a></div>' : '')+
         '<div id="importPreview" style="margin-top:12px;"></div>'+
       '</div>'+
       '<div class="mm-actions">'+
-        '<button class="mm-btn mm-cancel" onclick="fecharImportarLista()">Cancelar</button>'+
+        '<button class="mm-btn mm-cancel" onclick="fecharImportarLista()">Fechar</button>'+
         '<button class="mm-btn mm-confirm" onclick="processarListaImportada()" style="background:var(--orange);">🔍 Analisar Lista</button>'+
       '</div>'+
     '</div>';
   modal.classList.add('show');
   setTimeout(function(){
     var ta = document.getElementById('importListaTxt');
-    if(ta) ta.focus();
+    if(ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
   }, 100);
+}
+
+// 🔴 v15.2 — Salva rascunho a cada digitação
+function salvarRascunhoLista(){
+  var ta = document.getElementById('importListaTxt');
+  if(!ta) return;
+  try { localStorage.setItem(IMPORT_LISTA_KEY, ta.value); } catch(e){}
+}
+function limparRascunhoLista(){
+  try { localStorage.removeItem(IMPORT_LISTA_KEY); } catch(e){}
+  var ta = document.getElementById('importListaTxt');
+  if(ta) ta.value = '';
+  toast('Rascunho limpo');
+  abrirImportarLista(); // recarrega o modal sem o aviso
 }
 
 function fecharImportarLista(){
@@ -1786,6 +1838,9 @@ function processarListaImportada(){
   if(!txt){ toast('Cole a lista primeiro'); return; }
   if(!dadosEstoque || !dadosEstoque.produtos){ toast('Aguarde o carregamento dos produtos'); return; }
 
+  // Salva rascunho
+  salvarRascunhoLista();
+
   var linhas = txt.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
   if(linhas.length === 0){ toast('Lista vazia'); return; }
 
@@ -1794,14 +1849,9 @@ function processarListaImportada(){
   var ambiguos = [];
 
   linhas.forEach(function(linha){
-    // Tenta extrair: "NOME QTD" ou "QTD NOME" ou "NOME QTD UN"
     var qtd = 1; var nome = linha; var unidade = '';
-    
-    // Padrão 1: termina com número (ex: "ARROZ 5" ou "ARROZ 5 KG")
     var m1 = linha.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÀ-ú]{1,5})?$/);
-    // Padrão 2: começa com número (ex: "5 ARROZ")
     var m2 = linha.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
-
     if(m1){
       nome = m1[1].trim();
       qtd = parseFloat(m1[2].replace(',','.'));
@@ -1818,20 +1868,17 @@ function processarListaImportada(){
     });
 
     if(matches.length === 0){
-      naoEncontrados.push({ original: linha, nome: nome, qtd: qtd });
+      naoEncontrados.push({ original: linha, nome: nome.toUpperCase(), qtd: qtd, unidade: unidade || 'UN' });
     } else if(matches.length === 1){
       encontrados.push({ original: linha, produto: matches[0], qtd: qtd, unidade: unidade });
     } else {
-      // Mais de 1 match — pega o de maior estoque
       matches.sort(function(a,b){ return b.quantidade - a.quantidade; });
       ambiguos.push({ original: linha, produto: matches[0], qtd: qtd, unidade: unidade, alternativas: matches.length });
     }
   });
 
-  // Renderiza preview
   var previewEl = document.getElementById('importPreview');
   var html = '<div style="border-top:.5px solid var(--border); padding-top:14px;">';
-  
   if(encontrados.length > 0){
     html += '<div style="color:var(--green); font-weight:700; font-size:0.85rem; margin-bottom:8px;">✅ Encontrados ('+encontrados.length+')</div>';
     encontrados.forEach(function(e){
@@ -1845,46 +1892,49 @@ function processarListaImportada(){
     });
   }
   if(naoEncontrados.length > 0){
-    html += '<div style="color:var(--red); font-weight:700; font-size:0.85rem; margin:10px 0 8px;">❌ Não encontrados ('+naoEncontrados.length+')</div>';
+    html += '<div style="color:var(--orange); font-weight:700; font-size:0.85rem; margin:10px 0 8px;">📝 Sem cadastro ('+naoEncontrados.length+') — vão pro carrinho como pendentes de auditoria</div>';
     naoEncontrados.forEach(function(n){
-      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• '+escapeHtml(n.original)+'</div>';
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• '+escapeHtml(n.nome)+' — <b style="color:var(--orange);">'+n.qtd+' '+n.unidade+'</b> ⚠️</div>';
     });
   }
-  html += '<button class="submit-btn" onclick="confirmarImportacaoLista()" style="background:var(--green); margin-top:14px;" '+(encontrados.length+ambiguos.length === 0 ? 'disabled' : '')+'>'+
-    '➕ Adicionar '+(encontrados.length+ambiguos.length)+' itens ao carrinho</button>';
+  var totalAdicionar = encontrados.length + ambiguos.length + naoEncontrados.length;
+  html += '<button class="submit-btn" onclick="confirmarImportacaoLista()" style="background:var(--green); margin-top:14px;" '+(totalAdicionar === 0 ? 'disabled' : '')+'>'+
+    '➕ Adicionar '+totalAdicionar+' itens ao carrinho</button>';
   html += '</div>';
   previewEl.innerHTML = html;
 
-  // Salva pra usar no confirm
-  window._importListaCache = encontrados.concat(ambiguos);
+  window._importListaCache = {
+    encontrados: encontrados,
+    ambiguos: ambiguos,
+    naoEncontrados: naoEncontrados
+  };
 }
 
 function confirmarImportacaoLista(){
-  var lista = window._importListaCache || [];
-  if(lista.length === 0){ toast('Nada pra importar'); return; }
+  var cache = window._importListaCache;
+  if(!cache){ toast('Analise a lista primeiro'); return; }
 
+  var todosOk = cache.encontrados.concat(cache.ambiguos);
+  var pendentes = cache.naoEncontrados || [];
   var adicionados = 0;
   var overStockCount = 0;
+  var pendentesCount = 0;
 
-  lista.forEach(function(item){
+  // Itens existentes no estoque
+  todosOk.forEach(function(item){
     var p = item.produto;
     var qtd = item.qtd;
     var unidade = item.unidade || p.unidade;
     var fator = 1;
-
-    // Se a unidade veio diferente da base, tenta usar fator conhecido
     if(unidade !== p.unidade){
       var fatoresKnown = p.fatoresConversao || {};
       if(fatoresKnown[unidade]) fator = fatoresKnown[unidade];
-      // Se não tem fator conhecido, usa unidade base mesmo
       else unidade = p.unidade;
     }
-
     var qtdBase = qtd * fator;
     var overStock = qtdBase > p.quantidade;
     if(overStock) overStockCount++;
 
-    // Se já existe no carrinho, atualiza
     var existente = carrinhoSaida.find(function(x){ return x.linha === p.linha; });
     if(existente){
       existente.quantidade = qtd;
@@ -1907,13 +1957,40 @@ function confirmarImportacaoLista(){
     adicionados++;
   });
 
+  // 🔴 Itens NÃO cadastrados — entram como placeholder
+  pendentes.forEach(function(n){
+    // Linha sintética negativa pra não colidir com produtos reais
+    var linhaPlaceholder = -(Date.now() + Math.floor(Math.random()*10000));
+    carrinhoSaida.push({
+      linha: linhaPlaceholder,
+      nome: n.nome,
+      quantidade: n.qtd,
+      unidadeDigitada: n.unidade,
+      fator: 1,
+      quantidadeBase: n.qtd,
+      max: 0,
+      unidade: n.unidade,
+      unidadeBase: n.unidade,
+      overStock: true,
+      pendenteCadastro: true   // 🔴 flag pra mostrar visualmente
+    });
+    adicionarAuditoriaPendente(linhaPlaceholder, n.nome + ' (NÃO CADASTRADO)', n.qtd, 0);
+    adicionados++;
+    pendentesCount++;
+  });
+
   persistirCarrinho();
+
+  // Limpa rascunho da lista (já foi processado)
+  try { localStorage.removeItem(IMPORT_LISTA_KEY); } catch(e){}
+
   fecharImportarLista();
   renderCarrinho();
   switchTab('saida');
 
   var msg = adicionados+' item'+(adicionados>1?'s':'')+' no carrinho';
   if(overStockCount > 0) msg += ' • '+overStockCount+' c/ divergência';
+  if(pendentesCount > 0) msg += ' • '+pendentesCount+' p/ cadastrar';
   showSuccess('📋', 'Lista Importada!', msg);
   window._importListaCache = null;
 }
