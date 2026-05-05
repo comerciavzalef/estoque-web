@@ -20,7 +20,8 @@ var AUDIT_PENDING_KEY = 'cv_auditoria_pendente';
 var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao'; // 🔴 v15.2 — persiste o texto colado
 var FALTAS_KEY = 'cv_estoque_faltas'; // 🔴 v15.4 — itens em falta no carrinho
 var GEMINI_API_KEY = 'AIzaSyB5EQvbpiprQbIGDKkgt6XoxfwyyqkHuME'; // 🔴 v15.5 — OCR via Gemini
-var GEMINI_MODEL = 'gemini-2.0-flash-exp'; // modelo rápido e barato
+var GEMINI_MODEL = 'gemini-2.0-flash'; // 🔴 v15.5 — modelo estável e gratuito
+
 
 
 
