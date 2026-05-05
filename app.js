@@ -18,6 +18,8 @@ var SESSION_KEY = 'cv_estoque_sessao';
 var CART_KEY = 'cv_estoque_carrinho';
 var AUDIT_PENDING_KEY = 'cv_auditoria_pendente';
 var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao'; // 🔴 v15.2 — persiste o texto colado
+var FALTAS_KEY = 'cv_estoque_faltas'; // 🔴 v15.4 — itens em falta no carrinho
+
 
 
 var CREDS_OFFLINE = {
@@ -61,6 +63,7 @@ var flashLigado = false;
 var html5QrcodeScannerEntrada = null;
 var html5QrcodeScannerSaida = null;
 var carrinhoSaida = [];
+var itensFalta = []; // 🔴 v15.4
 var auditoriasPendentes = []; // 🔴 v15.0
 var miniModalContext = null;  // 🔴 v15.0 — contexto do mini-modal aberto
 var ptrState = { startY:0, currentY:0, pulling:false, ready:false }; // 🔴 v15.0
@@ -90,6 +93,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   // 🔴 v15.0 — Restaura carrinho e s pendentes do localStorage
   restaurarCarrinho();
+  restaurarFaltas(); // 🔴 v15.4
   restaurarAuditoriasPendentes();  
 
 });
@@ -176,6 +180,8 @@ function logout() {
   dadosEstoque = null;
   carrinhoSaida = [];
   persistirCarrinho();
+  itensFalta = []; // 🔴 v15.4
+  persistirFaltas();
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem('cv_estoque_cache');
   if (refreshInterval) clearInterval(refreshInterval);
@@ -209,6 +215,102 @@ function restaurarCarrinho(){
       if (Array.isArray(arr)) carrinhoSaida = arr;
     }
   } catch(e){ carrinhoSaida = []; }
+}
+
+
+function restaurarCarrinho(){
+  try {
+    var raw = localStorage.getItem(CART_KEY);
+    if (raw) {
+      var arr = JSON.parse(raw);
+      if (Array.isArray(arr)) carrinhoSaida = arr;
+    }
+  } catch(e){ carrinhoSaida = []; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🔴 v15.4 — ITENS EM FALTA
+// ══════════════════════════════════════════════════════════════
+function persistirFaltas(){
+  try { localStorage.setItem(FALTAS_KEY, JSON.stringify(itensFalta)); } catch(e){}
+}
+function restaurarFaltas(){
+  try {
+    var raw = localStorage.getItem(FALTAS_KEY);
+    if(raw){
+      var arr = JSON.parse(raw);
+      if(Array.isArray(arr)) itensFalta = arr;
+    }
+  } catch(e){ itensFalta = []; }
+}
+function abrirModalFalta(){
+  var modal = document.getElementById('faltaModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'faltaModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  var unidadesOpts = UNIDADES_DISPONIVEIS
+    .map(function(u){ return '<option value="'+u+'"'+(u==='UN'?' selected':'')+'>'+u+'</option>'; }).join('');
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharModalFalta()"></div>'+
+    '<div class="mm-card">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">❌ Adicionar Item em Falta</div>'+
+        '<div class="mm-sub">Será impresso em bloco separado no comprovante</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<label class="mm-label">Nome do produto</label>'+
+        '<input type="text" id="faltaNome" class="mm-input-qtd" style="font-size:1rem; text-align:left;" placeholder="Ex: ARROZ TIPO 1">'+
+        '<div style="display:flex; gap:10px; margin-top:12px;">'+
+          '<div style="flex:1;">'+
+            '<label class="mm-label">Quantidade</label>'+
+            '<input type="number" inputmode="decimal" id="faltaQtd" class="mm-input-qtd" value="1" min="0.01" step="0.01">'+
+          '</div>'+
+          '<div style="flex:1;">'+
+            '<label class="mm-label">Unidade</label>'+
+            '<select id="faltaUnidade" class="form-field">'+unidadesOpts+'</select>'+
+          '</div>'+
+        '</div>'+
+        '<label class="mm-label" style="margin-top:12px;">Observação (opcional)</label>'+
+        '<input type="text" id="faltaObs" class="form-field" placeholder="Ex: pediram 10, só temos 3">'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharModalFalta()">Cancelar</button>'+
+        '<button class="mm-btn mm-confirm" onclick="confirmarItemFalta()" style="background:var(--red);">❌ Adicionar Falta</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+  setTimeout(function(){
+    var el = document.getElementById('faltaNome');
+    if(el) el.focus();
+  }, 100);
+}
+function fecharModalFalta(){
+  var modal = document.getElementById('faltaModal');
+  if(modal) modal.classList.remove('show');
+}
+function confirmarItemFalta(){
+  var nome = (document.getElementById('faltaNome').value||'').trim().toUpperCase();
+  var qtd = parseFloat(document.getElementById('faltaQtd').value);
+  var unidade = document.getElementById('faltaUnidade').value;
+  var obs = (document.getElementById('faltaObs').value||'').trim();
+  if(!nome){ toast('Informe o nome do produto'); return; }
+  if(!qtd || qtd <= 0){ toast('Quantidade inválida'); return; }
+  itensFalta.push({
+    id: Date.now()+Math.floor(Math.random()*1000),
+    nome: nome, quantidade: qtd, unidade: unidade, observacao: obs
+  });
+  persistirFaltas();
+  fecharModalFalta();
+  renderCarrinho();
+  toast('❌ "'+nome+'" marcado como falta');
+}
+function removerItemFalta(id){
+  itensFalta = itensFalta.filter(function(f){ return f.id !== id; });
+  persistirFaltas();
+  renderCarrinho();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -988,23 +1090,53 @@ function renderCarrinho() {
   var list = document.getElementById('cartList');
   var count = document.getElementById('cartCount');
   if (!area) return;
-  if (carrinhoSaida.length === 0) { area.style.display = 'none'; return; }
+
+  if (carrinhoSaida.length === 0 && itensFalta.length === 0) {
+    area.style.display = 'none';
+    return;
+  }
   area.style.display = 'block';
-  count.textContent = carrinhoSaida.length;
+  count.textContent = carrinhoSaida.length + itensFalta.length;
+
   var h = '';
+
   carrinhoSaida.forEach(function (item) {
     var unTxt = item.unidadeDigitada || item.unidade || '';
     var overCls = item.overStock ? ' over-stock' : '';
-    var overTag = item.overStock ? '<span class="cart-over-tag">⚠️ Over</span>' : '';
-    h += '<div class="cart-item'+overCls+'" onclick="abrirMiniModalEdicao('+item.linha+')">' +
+    var pendCls = item.pendenteCadastro ? ' pendente-cadastro' : '';
+    var overTag = '';
+    if(item.pendenteCadastro){
+      overTag = '<span class="cart-over-tag" style="background:var(--orange); color:#fff;">📝 SEM CADASTRO</span>';
+    } else if(item.overStock){
+      overTag = '<span class="cart-over-tag">⚠️ Over</span>';
+    }
+    h += '<div class="cart-item'+overCls+pendCls+'" onclick="abrirMiniModalEdicao('+item.linha+')">' +
          '<div class="cart-info"><strong>' + escapeHtml(item.nome) + '</strong>' +
          '<small>'+item.quantidade+' '+escapeHtml(unTxt)+
-           (item.unidadeDigitada && item.unidadeDigitada !== item.unidadeBase ? ' (= '+item.quantidadeBase+' '+escapeHtml(item.unidadeBase)+')' : '')+
-           ' • Estoque: ' + item.max + ' ' + escapeHtml(item.unidadeBase || item.unidade) + '</small></div>' +
+           (item.unidadeDigitada && item.unidadeDigitada !== item.unidadeBase && !item.pendenteCadastro ? ' (= '+item.quantidadeBase+' '+escapeHtml(item.unidadeBase)+')' : '')+
+           (item.pendenteCadastro ? ' • ⚠️ Cadastrar na auditoria' : ' • Estoque: ' + item.max + ' ' + escapeHtml(item.unidadeBase || item.unidade)) + '</small></div>' +
          '<div class="cart-tap-hint">'+overTag+'<span class="cart-edit-icon">✏️</span></div>' +
          '</div>';
   });
+
+  if(itensFalta.length > 0){
+    h += '<div class="falta-divider" style="margin:14px 0 8px; padding:8px 12px; background:rgba(255,69,58,0.1); border-left:4px solid var(--red); border-radius:6px; font-weight:700; color:var(--red); font-size:0.85rem;">❌ Itens em Falta ('+itensFalta.length+')</div>';
+    itensFalta.forEach(function(f){
+      h += '<div class="cart-item falta-item" style="border-left:4px solid var(--red); background:rgba(255,69,58,0.05);">'+
+        '<div class="cart-info"><strong>'+escapeHtml(f.nome)+'</strong>'+
+        '<small>'+f.quantidade+' '+escapeHtml(f.unidade)+(f.observacao?' • '+escapeHtml(f.observacao):'')+'</small></div>'+
+        '<div class="cart-tap-hint">'+
+          '<button onclick="event.stopPropagation(); removerItemFalta('+f.id+')" style="background:transparent; border:none; color:var(--red); font-size:1.2rem; cursor:pointer; padding:0 8px;">🗑️</button>'+
+        '</div>'+
+      '</div>';
+    });
+  }
+
+  h += '<button class="cam-btn" onclick="abrirModalFalta()" style="width:100%; margin-top:10px; background:rgba(255,69,58,0.1); color:var(--red); font-weight:700; border:1px dashed var(--red);">❌ + Adicionar Item em Falta</button>';
+
   list.innerHTML = h;
+  persistirCarrinho();
+  persistirFaltas();
 }
 
 function abrirMiniModalEdicao(linha){
@@ -1114,6 +1246,7 @@ function confirmarSaidaLote() {
 
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 
+  var faltasParaRomaneio = JSON.parse(JSON.stringify(itensFalta)); // 🔴 v15.4
   var itensParaRomaneio = JSON.parse(JSON.stringify(carrinhoSaida));
   var itensPayload = carrinhoSaida.map(function (i) {
     return {
@@ -1132,6 +1265,8 @@ function confirmarSaidaLote() {
 
   carrinhoSaida = [];
   persistirCarrinho();
+  itensFalta = []; // 🔴 v15.4
+  persistirFaltas();
   if (motivoInput) motivoInput.value = 'SAÍDA DE PEDIDO';
   if (setorSelect) setorSelect.value = '';
   if (destinoSelect) destinoSelect.value = '';
@@ -1140,9 +1275,9 @@ function confirmarSaidaLote() {
   toggleNovoSetorBox();
   renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
 
-  if (motivoValue === 'SAÍDA DE PEDIDO') {
+      if (motivoValue === 'SAÍDA DE PEDIDO') {
     showSuccess('🖨️', 'Pedido Separado!', 'Gerando comprovante de entrega...');
-    gerarComprovantePedido(itensParaRomaneio, destinoFinal, setorFinal);
+    gerarComprovantePedido(itensParaRomaneio, destinoFinal, setorFinal, faltasParaRomaneio);
   } else {
     showSuccess('📤', 'Baixa Concluída!', 'Estoque atualizado.');
   }
@@ -2336,39 +2471,58 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function gerarComprovantePedido(itens, destino, setor) {
+function gerarComprovantePedido(itens, destino, setor, faltas) {
+  faltas = faltas || [];
   var hoje = new Date();
   var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
   var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
 
-  var html = '<div class="rel-container" style="background: #fff; color: #000; font-family: \'Inter\', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">';
-  html += '<div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">';
-  html += '<h1 style="margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase;">Comprovante de Entrega</h1>';
-  html += '<p style="margin: 5px 0 0 0; font-size: 14px; font-weight: 600; color: #444;">Grupo Carlos Vaz — CRV/LAS</p></div>';
-  html += '<div style="background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; line-height: 1.6;">';
+  var html = '<div class="rel-container" style="background:#fff; color:#000; font-family:\'Inter\',sans-serif; padding:20px; max-width:800px; margin:0 auto;">';
+  html += '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:20px;">';
+  html += '<h1 style="margin:0; font-size:22px; font-weight:800; text-transform:uppercase;">Comprovante de Entrega</h1>';
+  html += '<p style="margin:5px 0 0 0; font-size:14px; font-weight:600; color:#444;">Grupo Carlos Vaz — CRV/LAS</p></div>';
+  html += '<div style="background:#f9f9f9; border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:20px; font-size:14px; line-height:1.6;">';
   html += '<strong>Data de Separação:</strong> ' + dataStr + ' às ' + horaStr + '<br>';
   html += '<strong>Separador Responsável:</strong> ' + (sessao ? sessao.nome : '—') + '<br>';
   if(setor){
-    html += '<strong>Setor Solicitante:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase; color:#0a84ff;">' + escapeHtml(setor) + '</span><br>';
+    html += '<strong>Setor Solicitante:</strong> <span style="font-size:16px; font-weight:700; text-transform:uppercase; color:#0a84ff;">' + escapeHtml(setor) + '</span><br>';
   }
-  html += '<strong>Destino / Obra:</strong> <span style="font-size: 16px; font-weight: 700; text-transform: uppercase;">' + escapeHtml(destino) + '</span><br></div>';
-  html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 14px;">';
-  html += '<thead><tr style="background: #eee; border-bottom: 2px solid #000;"><th style="padding: 12px 8px; text-align: left;">Qtd</th><th style="padding: 12px 8px; text-align: left;">Un</th><th style="padding: 12px 8px; text-align: left;">Produto</th><th style="padding: 12px 8px; text-align: center;">Conferido</th></tr></thead><tbody>';
+  html += '<strong>Destino / Obra:</strong> <span style="font-size:16px; font-weight:700; text-transform:uppercase;">' + escapeHtml(destino) + '</span><br></div>';
 
-  itens.forEach(function (item) {
-    var unMostrar = item.unidadeDigitada || item.unidade || item.unidadeBase || '';
-    var qtdMostrar = item.quantidade;
-    html += '<tr style="border-bottom: 1px solid #ddd;">';
-    html += '<td style="padding: 12px 8px; font-weight: 800; font-size: 16px;">' + qtdMostrar + '</td>';
-    html += '<td style="padding: 12px 8px; color: #555;">' + escapeHtml(unMostrar) + '</td>';
-    html += '<td style="padding: 12px 8px; font-weight: 500;">' + escapeHtml(item.nome) + '</td>';
-    html += '<td style="padding: 12px 8px; text-align: center;"><div style="width: 20px; height: 20px; border: 1px solid #999; border-radius: 4px; margin: 0 auto;"></div></td></tr>';
-  });
+  if(itens.length > 0){
+    html += '<h2 style="font-size:15px; margin:20px 0 8px; padding:8px 12px; background:#e8f5e9; border-left:4px solid #2e7d32; color:#2e7d32; text-transform:uppercase;">✅ Itens Entregues ('+itens.length+')</h2>';
+    html += '<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">';
+    html += '<thead><tr style="background:#eee; border-bottom:2px solid #000;"><th style="padding:12px 8px; text-align:left;">Qtd</th><th style="padding:12px 8px; text-align:left;">Un</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:center;">Conferido</th></tr></thead><tbody>';
+    itens.forEach(function (item) {
+      var unMostrar = item.unidadeDigitada || item.unidade || item.unidadeBase || '';
+      html += '<tr style="border-bottom:1px solid #ddd;">';
+      html += '<td style="padding:12px 8px; font-weight:800; font-size:16px;">' + item.quantidade + '</td>';
+      html += '<td style="padding:12px 8px; color:#555;">' + escapeHtml(unMostrar) + '</td>';
+      html += '<td style="padding:12px 8px; font-weight:500;">' + escapeHtml(item.nome) + '</td>';
+      html += '<td style="padding:12px 8px; text-align:center;"><div style="width:20px; height:20px; border:1px solid #999; border-radius:4px; margin:0 auto;"></div></td></tr>';
+    });
+    html += '</tbody></table>';
+  }
 
-  html += '</tbody></table><div style="margin-top: 40px; font-size: 13px; color: #333;">';
-  html += '<p style="text-align: center; margin-bottom: 50px; font-style: italic;">Declaro ter recebido os itens acima descritos em perfeitas condições.</p>';
-  html += '<div style="display: flex; justify-content: space-between; margin-bottom: 50px;"><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Assinatura do Recebedor</div><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Documento (CPF / RG)</div></div>';
-  html += '<div style="display: flex; justify-content: space-between;"><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Data de Recebimento</div><div style="width: 45%; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Motorista/Entregador</div></div></div></div>';
+  if(faltas.length > 0){
+    html += '<h2 style="font-size:15px; margin:20px 0 8px; padding:8px 12px; background:#ffebee; border-left:4px solid #c62828; color:#c62828; text-transform:uppercase;">❌ Itens em Falta ('+faltas.length+')</h2>';
+    html += '<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">';
+    html += '<thead><tr style="background:#ffebee; border-bottom:2px solid #c62828;"><th style="padding:12px 8px; text-align:left;">Qtd Solicitada</th><th style="padding:12px 8px; text-align:left;">Un</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:left;">Observação</th></tr></thead><tbody>';
+    faltas.forEach(function(f){
+      html += '<tr style="border-bottom:1px solid #f5c6c6;">';
+      html += '<td style="padding:12px 8px; font-weight:800; font-size:16px; color:#c62828;">'+f.quantidade+'</td>';
+      html += '<td style="padding:12px 8px; color:#555;">'+escapeHtml(f.unidade)+'</td>';
+      html += '<td style="padding:12px 8px; font-weight:500;">'+escapeHtml(f.nome)+'</td>';
+      html += '<td style="padding:12px 8px; font-style:italic; color:#666;">'+escapeHtml(f.observacao||'—')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<p style="font-size:12px; color:#c62828; font-style:italic; margin-bottom:20px;">⚠️ Os itens acima não foram entregues por estarem em falta no estoque.</p>';
+  }
+
+  html += '<div style="margin-top:40px; font-size:13px; color:#333;">';
+  html += '<p style="text-align:center; margin-bottom:50px; font-style:italic;">Declaro ter recebido os itens acima descritos em perfeitas condições.</p>';
+  html += '<div style="display:flex; justify-content:space-between; margin-bottom:50px;"><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Assinatura do Recebedor</div><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Documento (CPF / RG)</div></div>';
+  html += '<div style="display:flex; justify-content:space-between;"><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Data de Recebimento</div><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Motorista/Entregador</div></div></div></div>';
 
   var overlay = document.getElementById('relatorioOverlay');
   if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
@@ -2376,6 +2530,7 @@ function gerarComprovantePedido(itens, destino, setor) {
   overlay.classList.add('show'); overlay.scrollTop = 0;
   setTimeout(function () { window.print(); }, 1000);
 }
+
 
 
 // ══════════════════════════════════════════════════════════════
