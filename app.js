@@ -55,7 +55,7 @@ var flashLigado = false;
 var html5QrcodeScannerEntrada = null;
 var html5QrcodeScannerSaida = null;
 var carrinhoSaida = [];
-var sPendentes = []; // 🔴 v15.0
+var auditoriasPendentes = []; // 🔴 v15.0
 var miniModalContext = null;  // 🔴 v15.0 — contexto do mini-modal aberto
 var ptrState = { startY:0, currentY:0, pulling:false, ready:false }; // 🔴 v15.0
 var audioCtx = null;          // 🔴 v15.0 — Web Audio API singleton
@@ -84,7 +84,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   // 🔴 v15.0 — Restaura carrinho e s pendentes do localStorage
   restaurarCarrinho();
-  restaurarsPendentes();
+  restaurarAuditoriasPendentes();  
+
 });
 
 function toggleSenha() {
