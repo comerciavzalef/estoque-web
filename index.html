@@ -196,21 +196,7 @@
 
      <!-- ══════ TAB: SAÍDA (CARRINHO E VENCIDOS) ══════ -->        
     <div class="tab-content" id="contentSaida">
-
-      <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
-        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar quantidade ou unidade.">?</span></div>
-        <div id="cartList" style="margin-bottom: 24px;"></div>
-        
-        <div style="padding-top: 20px; border-top: .5px solid var(--border);">
-          <label class="form-label" style="margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
-          <select id="loteMotivoSelect" class="form-field" style="margin-bottom:16px;">
-            <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
-            <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
-            <option value="AVARIA">⚠️ Avaria / Perda</option>
-            <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
-          </select>
-     
-          
+      
        <!-- 🔴 v15.1 — Destino + Setor (só aparecem em SAÍDA DE PEDIDO) -->
 <div id="destinoBox" style="display:none;">
   <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
@@ -231,6 +217,19 @@
           <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
       </div>
+
+  <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
+        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar quantidade ou unidade.">?</span></div>
+        <div id="cartList" style="margin-bottom: 24px;"></div>
+        
+        <div style="padding-top: 20px; border-top: .5px solid var(--border);">
+          <label class="form-label" style="margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
+          <select id="loteMotivoSelect" class="form-field" style="margin-bottom:16px;">
+            <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
+            <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
+            <option value="AVARIA">⚠️ Avaria / Perda</option>
+            <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
+          </select>
 
       <div class="section-label">
         SAÍDA EM LOTE (CARRINHO) 
