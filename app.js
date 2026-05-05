@@ -2528,8 +2528,17 @@ function gerarComprovantePedido(itens, destino, setor, faltas) {
   if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
   overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()">🖨️ Imprimir</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
   overlay.classList.add('show'); overlay.scrollTop = 0;
-  setTimeout(function () { window.print(); }, 1000);
+
+  // 🔴 v15.4 — Aguarda renderização real antes de imprimir
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        try { window.print(); } catch(e){ console.warn('Erro ao imprimir:', e); }
+      }, 2500);
+    });
+  });
 }
+
 
 
 
