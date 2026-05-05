@@ -505,8 +505,6 @@ function switchTab(tab) {
   if (tab === 'comprovantes') { carregarComprovantes(); }
 }
 
-}
-
 function syncDados() {
   fetch(API_URL + '?sync=1')
     .then(function (r) { return r.json(); })
