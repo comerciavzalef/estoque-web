@@ -1739,59 +1739,183 @@ function exportarSaidaRapidaCSV(){
   toast('✅ '+lista.length+' produtos exportados');
 }
 
-// 🔴 v15.2 — Imprimir lista da Saída Rápida
-function imprimirSaidaRapida(){
-  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Sem dados pra imprimir'); return; }
-  var termo = (document.getElementById('rapidaSearch')||{value:''}).value.toLowerCase().trim();
-  var produtos = dadosEstoque.produtos;
-  if(termo){
-    produtos = produtos.filter(function(p){
-      return p.nome.toLowerCase().indexOf(termo) > -1 ||
-             (p.marca && p.marca.toLowerCase().indexOf(termo) > -1) ||
-             p.setor.toLowerCase().indexOf(termo) > -1;
+// 🔴 v15.2 — IMPORTAR LISTA DE SAÍDA (cola texto e gera carrinho)
+function abrirImportarLista(){
+  var modal = document.getElementById('importListaModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'importListaModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharImportarLista()"></div>'+
+    '<div class="mm-card" style="max-width:520px;">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">📋 Importar Lista de Saída</div>'+
+        '<div class="mm-sub">Cole a lista de produtos (1 por linha)</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<label class="mm-label">Formato aceito:</label>'+
+        '<div style="background:rgba(118,118,128,.15); padding:10px; border-radius:8px; font-family:monospace; font-size:0.75rem; margin-bottom:14px; line-height:1.6; color:var(--text-secondary);">'+
+          'ARROZ 5<br>FEIJÃO 10<br>ÓLEO 2 L<br>5 SABÃO<br><span style="color:var(--text-tertiary);">(quantidade pode vir antes ou depois do nome)</span>'+
+        '</div>'+
+        '<label class="mm-label">Cole sua lista aqui:</label>'+
+        '<textarea id="importListaTxt" class="form-field" rows="10" style="font-family:monospace; font-size:0.85rem; min-height:200px; resize:vertical;" placeholder="ARROZ 5&#10;FEIJÃO 10&#10;ÓLEO 2&#10;..." autofocus></textarea>'+
+        '<div id="importPreview" style="margin-top:12px;"></div>'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharImportarLista()">Cancelar</button>'+
+        '<button class="mm-btn mm-confirm" onclick="processarListaImportada()" style="background:var(--orange);">🔍 Analisar Lista</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+  setTimeout(function(){
+    var ta = document.getElementById('importListaTxt');
+    if(ta) ta.focus();
+  }, 100);
+}
+
+function fecharImportarLista(){
+  var modal = document.getElementById('importListaModal');
+  if(modal) modal.classList.remove('show');
+}
+
+function processarListaImportada(){
+  var txt = document.getElementById('importListaTxt').value.trim();
+  if(!txt){ toast('Cole a lista primeiro'); return; }
+  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Aguarde o carregamento dos produtos'); return; }
+
+  var linhas = txt.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+  if(linhas.length === 0){ toast('Lista vazia'); return; }
+
+  var encontrados = [];
+  var naoEncontrados = [];
+  var ambiguos = [];
+
+  linhas.forEach(function(linha){
+    // Tenta extrair: "NOME QTD" ou "QTD NOME" ou "NOME QTD UN"
+    var qtd = 1; var nome = linha; var unidade = '';
+    
+    // Padrão 1: termina com número (ex: "ARROZ 5" ou "ARROZ 5 KG")
+    var m1 = linha.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÀ-ú]{1,5})?$/);
+    // Padrão 2: começa com número (ex: "5 ARROZ")
+    var m2 = linha.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+
+    if(m1){
+      nome = m1[1].trim();
+      qtd = parseFloat(m1[2].replace(',','.'));
+      unidade = (m1[3]||'').toUpperCase();
+    } else if(m2){
+      qtd = parseFloat(m2[1].replace(',','.'));
+      nome = m2[2].trim();
+    }
+
+    var nomeBusca = nome.toLowerCase();
+    var matches = dadosEstoque.produtos.filter(function(p){
+      return p.nome.toLowerCase().indexOf(nomeBusca) > -1 ||
+             nomeBusca.indexOf(p.nome.toLowerCase()) > -1;
+    });
+
+    if(matches.length === 0){
+      naoEncontrados.push({ original: linha, nome: nome, qtd: qtd });
+    } else if(matches.length === 1){
+      encontrados.push({ original: linha, produto: matches[0], qtd: qtd, unidade: unidade });
+    } else {
+      // Mais de 1 match — pega o de maior estoque
+      matches.sort(function(a,b){ return b.quantidade - a.quantidade; });
+      ambiguos.push({ original: linha, produto: matches[0], qtd: qtd, unidade: unidade, alternativas: matches.length });
+    }
+  });
+
+  // Renderiza preview
+  var previewEl = document.getElementById('importPreview');
+  var html = '<div style="border-top:.5px solid var(--border); padding-top:14px;">';
+  
+  if(encontrados.length > 0){
+    html += '<div style="color:var(--green); font-weight:700; font-size:0.85rem; margin-bottom:8px;">✅ Encontrados ('+encontrados.length+')</div>';
+    encontrados.forEach(function(e){
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• '+escapeHtml(e.produto.nome)+' — <b style="color:var(--blue);">'+e.qtd+' '+(e.unidade||e.produto.unidade)+'</b></div>';
     });
   }
-  if(produtos.length === 0){ toast('Nada pra imprimir'); return; }
+  if(ambiguos.length > 0){
+    html += '<div style="color:var(--yellow); font-weight:700; font-size:0.85rem; margin:10px 0 8px;">⚠️ Múltiplos matches ('+ambiguos.length+') — usaremos o de maior estoque</div>';
+    ambiguos.forEach(function(a){
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• "'+escapeHtml(a.original)+'" → '+escapeHtml(a.produto.nome)+' ('+a.alternativas+' opções)</div>';
+    });
+  }
+  if(naoEncontrados.length > 0){
+    html += '<div style="color:var(--red); font-weight:700; font-size:0.85rem; margin:10px 0 8px;">❌ Não encontrados ('+naoEncontrados.length+')</div>';
+    naoEncontrados.forEach(function(n){
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• '+escapeHtml(n.original)+'</div>';
+    });
+  }
+  html += '<button class="submit-btn" onclick="confirmarImportacaoLista()" style="background:var(--green); margin-top:14px;" '+(encontrados.length+ambiguos.length === 0 ? 'disabled' : '')+'>'+
+    '➕ Adicionar '+(encontrados.length+ambiguos.length)+' itens ao carrinho</button>';
+  html += '</div>';
+  previewEl.innerHTML = html;
 
-  var grupos = {};
-  produtos.forEach(function(p){
-    var chave = (p.nome+'_'+p.marca).toUpperCase();
-    if(!grupos[chave]){
-      grupos[chave] = { nome:p.nome, marca:p.marca, setor:p.setor, unidade:p.unidade, qtd:0, status:p.status||'OK' };
+  // Salva pra usar no confirm
+  window._importListaCache = encontrados.concat(ambiguos);
+}
+
+function confirmarImportacaoLista(){
+  var lista = window._importListaCache || [];
+  if(lista.length === 0){ toast('Nada pra importar'); return; }
+
+  var adicionados = 0;
+  var overStockCount = 0;
+
+  lista.forEach(function(item){
+    var p = item.produto;
+    var qtd = item.qtd;
+    var unidade = item.unidade || p.unidade;
+    var fator = 1;
+
+    // Se a unidade veio diferente da base, tenta usar fator conhecido
+    if(unidade !== p.unidade){
+      var fatoresKnown = p.fatoresConversao || {};
+      if(fatoresKnown[unidade]) fator = fatoresKnown[unidade];
+      // Se não tem fator conhecido, usa unidade base mesmo
+      else unidade = p.unidade;
     }
-    grupos[chave].qtd += parseFloat(p.quantidade)||0;
+
+    var qtdBase = qtd * fator;
+    var overStock = qtdBase > p.quantidade;
+    if(overStock) overStockCount++;
+
+    // Se já existe no carrinho, atualiza
+    var existente = carrinhoSaida.find(function(x){ return x.linha === p.linha; });
+    if(existente){
+      existente.quantidade = qtd;
+      existente.unidadeDigitada = unidade;
+      existente.fator = fator;
+      existente.quantidadeBase = qtdBase;
+      existente.overStock = overStock;
+    } else {
+      carrinhoSaida.push({
+        linha: p.linha, nome: p.nome,
+        quantidade: qtd, unidadeDigitada: unidade, fator: fator,
+        quantidadeBase: qtdBase, max: p.quantidade,
+        unidade: p.unidade, unidadeBase: p.unidade,
+        overStock: overStock
+      });
+    }
+    if(overStock){
+      adicionarAuditoriaPendente(p.linha, p.nome, qtdBase, p.quantidade);
+    }
+    adicionados++;
   });
-  var lista = Object.keys(grupos).map(function(k){ return grupos[k]; });
-  lista.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
 
-  var hoje = new Date();
-  var dataStr = String(hoje.getDate()).padStart(2,'0')+'/'+String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear();
-  var horaStr = String(hoje.getHours()).padStart(2,'0')+':'+String(hoje.getMinutes()).padStart(2,'0');
+  persistirCarrinho();
+  fecharImportarLista();
+  renderCarrinho();
+  switchTab('saida');
 
-  var w = window.open('','_blank','width=900,height=700');
-  if(!w){ toast('Pop-up bloqueado. Permita pop-ups.'); return; }
-  var rows = '';
-  lista.forEach(function(g, i){
-    rows += '<tr><td>'+(i+1)+'</td><td>'+escapeHtml(g.nome)+'</td><td>'+escapeHtml(g.marca||'—')+'</td><td>'+escapeHtml(g.setor)+'</td><td style="text-align:right; font-weight:700;">'+g.qtd+'</td><td>'+escapeHtml(g.unidade)+'</td><td>'+escapeHtml(g.status)+'</td><td style="width:30px; border:1px solid #999;"></td></tr>';
-  });
-
-  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Saída Rápida</title>'+
-    '<style>body{font-family:-apple-system,Arial,sans-serif; color:#000; padding:20px; max-width:900px; margin:0 auto;}'+
-    'h1{font-size:18px; margin:0 0 4px 0; text-transform:uppercase;}'+
-    'h2{font-size:13px; margin:0 0 16px 0; color:#666; font-weight:500;}'+
-    '.head{text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:14px;}'+
-    'table{width:100%; border-collapse:collapse; font-size:12px;}'+
-    'th{background:#eee; border-bottom:2px solid #000; padding:8px 6px; text-align:left;}'+
-    'td{padding:6px; border-bottom:1px solid #ddd;}'+
-    '.foot{margin-top:24px; font-size:11px; color:#666; text-align:center;}'+
-    '@media print{body{padding:0;}}'+
-    '</style></head><body>'+
-    '<div class="head"><h1>Estoque Digital — CRV/LAS</h1><h2>Lista de Saída Rápida · '+dataStr+' às '+horaStr+(termo?' · Filtro: "'+escapeHtml(termo)+'"':'')+'</h2></div>'+
-    '<table><thead><tr><th>#</th><th>Produto</th><th>Marca</th><th>Setor</th><th style="text-align:right;">Qtd</th><th>Un</th><th>Status</th><th>✓</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-    '<div class="foot">Total: '+lista.length+' produtos · Operador: '+escapeHtml(sessao?sessao.nome:'—')+'</div>'+
-    '</body></html>';
-  w.document.open(); w.document.write(doc); w.document.close();
-  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 300);
+  var msg = adicionados+' item'+(adicionados>1?'s':'')+' no carrinho';
+  if(overStockCount > 0) msg += ' • '+overStockCount+' c/ divergência';
+  showSuccess('📋', 'Lista Importada!', msg);
+  window._importListaCache = null;
 }
 
 
