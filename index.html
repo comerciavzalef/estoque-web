@@ -106,6 +106,9 @@
         <button class="tab-btn" onclick="switchTab('rapida')" id="tabRapida">⚡ Rápida</button>
         <button class="tab-btn" onclick="switchTab('auditoria')" id="tabAuditoria">Auditoria</button>
         <button class="tab-btn" onclick="switchTab('historico')" id="tabHistorico">Histórico</button>
+        <button class="tab-btn" id="tabHistorico" onclick="switchTab('historico')">📊 Histórico</button>
+<button class="tab-btn" id="tabComprovantes" onclick="switchTab('comprovantes')">📜 Comprovantes</button>
+
       </div>
     </div>
 
@@ -316,6 +319,12 @@
         <p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p>
       </div>
     </div>
+
+    <!-- v15.6 — Aba Comprovantes -->
+<div class="tab-content" id="contentComprovantes">
+  <div id="comprovantesList"></div>
+</div>
+
 
   </div>
 </div>
