@@ -36,6 +36,7 @@ var CREDS_OFFLINE = {
 };
 
 
+
 // 🔴 v15.0 — Unidades disponíveis no mini-modal
 var UNIDADES_DISPONIVEIS = ['UN','KG','L','CX','PCT','FARDO','RL','FD','GL'];
 
