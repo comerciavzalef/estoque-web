@@ -954,7 +954,7 @@ function abrirMiniModal(ctx){
       '</div>' +
       '<div class="mm-body">'+
         '<label class="mm-label">Quantidade</label>'+
-        '<input type="number" inputmode="decimal" id="mmQtd" class="mm-input-qtd" value="'+ctx.quantidadePre+'" min="0.01" step="0.01" autofocus>'+
+        '<input type="number" inputmode="decimal" id="mmQtd" class="mm-input-qtd" value="'+ctx.quantidadePre+'" min="0.01" step="0.01" readonly onclick="this.removeAttribute(\'readonly\'); this.select();">'+
         '<label class="mm-label">Unidade</label>'+
         '<div class="mm-units">'+unidadesHtml+'</div>'+
         '<div id="mmFatorBox" class="mm-fator-box" style="display:'+(precisaFator?'block':'none')+';">'+
