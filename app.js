@@ -1132,9 +1132,13 @@ function renderCarrinho() {
     });
   }
 
-  h += '<button class="cam-btn" onclick="abrirModalFalta()" style="width:100%; margin-top:10px; background:rgba(255,69,58,0.1); color:var(--red); font-weight:700; border:1px dashed var(--red);">❌ + Adicionar Item em Falta</button>';
+   h += '<div style="display:flex; gap:8px; margin-top:10px;">'+
+       '<button class="cam-btn" onclick="abrirModalFalta()" style="flex:1; background:rgba(255,69,58,0.1); color:var(--red); font-weight:700; border:1px dashed var(--red);">❌ + 1 Item</button>'+
+       '<button class="cam-btn" onclick="abrirImportarFaltas()" style="flex:1; background:rgba(255,69,58,0.1); color:var(--red); font-weight:700; border:1px dashed var(--red);">📋 Importar Lista</button>'+
+       '</div>';
 
   list.innerHTML = h;
+
   persistirCarrinho();
   persistirFaltas();
 }
