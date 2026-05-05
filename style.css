@@ -824,3 +824,14 @@ body.com-banner-auditoria .top-bar {
 @media print {
   #miniModal, #cadRapidoModal { display: none !important; }
 }
+
+/* ── 🆕 v15.1 — Setor solicitante (campo de novo setor) ── */
+#loteSetorNovo {
+  border-color: var(--green) !important;
+  animation: fadeIn 0.25s ease;
+}
+#btnConfirmarNovoSetor {
+  width: 100%;
+  font-size: 0.85rem !important;
+  animation: fadeIn 0.25s ease;
+}
