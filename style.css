@@ -835,3 +835,9 @@ body.com-banner-auditoria .top-bar {
   font-size: 0.85rem !important;
   animation: fadeIn 0.25s ease;
 }
+
+/* v15.2 — Item placeholder (sem cadastro) */
+.cart-item.pendente-cadastro {
+  border-left: 4px solid var(--orange) !important;
+  background: rgba(255, 159, 10, 0.08) !important;
+}
