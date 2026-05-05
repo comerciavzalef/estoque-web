@@ -2377,6 +2377,88 @@ function gerarComprovantePedido(itens, destino, setor) {
   setTimeout(function () { window.print(); }, 1000);
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// 🔴 v15.3 — SWIPE HORIZONTAL = VOLTAR PRA ABA ANTERIOR
+// ══════════════════════════════════════════════════════════════
+var navegacaoHistorico = ['painel']; // pilha de abas visitadas
+var swipeState = { startX: 0, startY: 0, startT: 0, tracking: false };
+
+// Hook no switchTab original pra registrar o histórico
+var _switchTabOriginal = switchTab;
+switchTab = function(tab){
+  var ultimoIdx = navegacaoHistorico.length - 1;
+  if(navegacaoHistorico[ultimoIdx] !== tab){
+    navegacaoHistorico.push(tab);
+    // limita pilha a 10 itens pra não crescer infinito
+    if(navegacaoHistorico.length > 10) navegacaoHistorico.shift();
+  }
+  _switchTabOriginal(tab);
+};
+
+function voltarAbaAnterior(){
+  // Se tem modal aberto, fecha o modal em vez de voltar
+  var modaisAbertos = document.querySelectorAll('.modal-overlay.show, .mini-modal.show, #relatorioOverlay.show');
+  if(modaisAbertos.length > 0){
+    modaisAbertos.forEach(function(m){ m.classList.remove('show'); });
+    return;
+  }
+  // Volta uma aba na pilha
+  if(navegacaoHistorico.length > 1){
+    navegacaoHistorico.pop(); // remove a atual
+    var anterior = navegacaoHistorico[navegacaoHistorico.length - 1];
+    _switchTabOriginal(anterior);
+  } else {
+    // Já está no painel — feedback sutil
+    _switchTabOriginal('painel');
+  }
+}
+
+document.addEventListener('touchstart', function(e){
+  // Ignora se tocou em campo de input/scanner/canvas
+  var alvo = e.target;
+  if(alvo.closest('input, textarea, select, video, canvas, .mini-modal, .modal-overlay, #readerEntrada, #readerSaida')) return;
+  if(e.touches.length !== 1) return;
+  swipeState.startX = e.touches[0].clientX;
+  swipeState.startY = e.touches[0].clientY;
+  swipeState.startT = Date.now();
+  swipeState.tracking = true;
+}, { passive: true });
+
+document.addEventListener('touchend', function(e){
+  if(!swipeState.tracking) return;
+  swipeState.tracking = false;
+  var t = e.changedTouches[0];
+  var dx = t.clientX - swipeState.startX;
+  var dy = t.clientY - swipeState.startY;
+  var dt = Date.now() - swipeState.startT;
+  // Critérios: swipe rápido (<500ms), horizontal predominante, distância >80px
+  if(dt > 500) return;
+  if(Math.abs(dx) < 80) return;
+  if(Math.abs(dy) > Math.abs(dx) * 0.7) return; // se foi mais vertical, ignora
+  // Swipe da esquerda pra direita = voltar (estilo iOS)
+  if(dx > 0 && swipeState.startX < 60){
+    // Edge swipe: começou na borda esquerda
+    voltarAbaAnterior();
+    if(navigator.vibrate) navigator.vibrate(30);
+  } else if(dx > 120){
+    // Swipe horizontal generoso em qualquer parte da tela
+    voltarAbaAnterior();
+    if(navigator.vibrate) navigator.vibrate(30);
+  }
+}, { passive: true });
+
+// 🔴 Bonus: botão "Voltar" do Android também volta de aba em vez de sair
+window.addEventListener('popstate', function(){
+  voltarAbaAnterior();
+  history.pushState(null, '', location.href); // re-empilha pra continuar interceptando
+});
+// Empilha estado inicial
+if(window.history && window.history.pushState){
+  history.pushState(null, '', location.href);
+}
+
+
 // ══════════════ MOTOR DOS BALÕES DE AJUDA ══════════════
 document.addEventListener('click', function (e) {
   if (!e.target.classList.contains('help-icon')) {
