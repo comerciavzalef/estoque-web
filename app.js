@@ -361,7 +361,9 @@ function iniciarApp() {
   }
   document.getElementById('ldScreen').classList.remove('hidden');
   document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('userBadge').textContent = sessao.nome;
+  var ub = document.getElementById('userBadge');
+if(ub) ub.textContent = sessao.nome;
+
   if (sessao.nivel === 'gestor') document.getElementById('badgeGestor').style.display = '';
   var cache = localStorage.getItem('cv_estoque_cache');
   if (cache) { dadosEstoque = limparDuplicatasZeradas(JSON.parse(cache)); renderPainel(dadosEstoque); }
