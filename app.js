@@ -502,6 +502,9 @@ function switchTab(tab) {
   if (tab === 'auditoria' && dadosEstoque) { renderAuditoriaList(dadosEstoque.produtos); }
   if (tab === 'rapida' && dadosEstoque) { renderSaidaRapidaList(dadosEstoque.produtos); }
   if (tab === 'historico' && dadosEstoque) { renderHistoricoCards(); }
+  if (tab === 'comprovantes') { carregarComprovantes(); }
+}
+
 }
 
 function syncDados() {
