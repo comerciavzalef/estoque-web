@@ -2524,18 +2524,11 @@ function gerarComprovantePedido(itens, destino, setor, faltas) {
 
   var overlay = document.getElementById('relatorioOverlay');
   if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
-  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()">🖨️ Imprimir</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
+    overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()" style="background:var(--blue); color:#fff; font-weight:700; font-size:1rem; padding:12px 20px;">🖨️ Imprimir Comprovante</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
   overlay.classList.add('show'); overlay.scrollTop = 0;
-
-  // 🔴 v15.4 — Aguarda renderização real antes de imprimir
-  requestAnimationFrame(function(){
-    requestAnimationFrame(function(){
-      setTimeout(function(){
-        try { window.print(); } catch(e){ console.warn('Erro ao imprimir:', e); }
-      }, 2500);
-    });
-  });
+  // 🔴 v15.4 — Impressão MANUAL: usuário clica no botão acima quando estiver pronto
 }
+
 
 
 
