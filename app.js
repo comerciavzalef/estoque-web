@@ -19,6 +19,8 @@ var CART_KEY = 'cv_estoque_carrinho';
 var AUDIT_PENDING_KEY = 'cv_auditoria_pendente';
 var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao'; // 🔴 v15.2 — persiste o texto colado
 var FALTAS_KEY = 'cv_estoque_faltas'; // 🔴 v15.4 — itens em falta no carrinho
+var GEMINI_API_KEY = 'COLE_SUA_CHAVE_AQUI'; // 🔴 v15.5 — OCR via Gemini
+var GEMINI_MODEL = 'gemini-2.0-flash-exp'; // modelo rápido e barato
 
 
 
@@ -1934,6 +1936,213 @@ function exportarSaidaRapidaCSV(){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
   toast('✅ '+lista.length+' produtos exportados');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🔴 v15.5 — OCR DE LISTAS VIA GEMINI (foto → texto)
+// ══════════════════════════════════════════════════════════════
+var ocrModoAtual = 'entrega'; // 'entrega' ou 'falta'
+
+function abrirCameraOCR(modo){
+  ocrModoAtual = modo || 'entrega';
+  var modal = document.getElementById('ocrModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'ocrModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  var titulo = ocrModoAtual === 'falta' ? '📸 Foto da Lista de Faltas' : '📸 Foto da Lista';
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharCameraOCR()"></div>'+
+    '<div class="mm-card" style="max-width:520px;">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">'+titulo+'</div>'+
+        '<div class="mm-sub">Tire foto nítida da lista (papel, requisição, etc)</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<input type="file" id="ocrFileInput" accept="image/*" capture="environment" style="display:none;" onchange="processarFotoOCR(event)">'+
+        '<button class="cam-btn" onclick="document.getElementById(\'ocrFileInput\').click()" style="width:100%; background:var(--blue); color:#fff; font-weight:700; padding:18px; font-size:1rem;">📷 Tirar Foto / Escolher Imagem</button>'+
+        '<div id="ocrPreview" style="margin-top:14px;"></div>'+
+        '<div id="ocrStatus" style="margin-top:14px; text-align:center; color:var(--text-secondary); font-size:0.85rem;"></div>'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharCameraOCR()">Fechar</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+function fecharCameraOCR(){
+  var modal = document.getElementById('ocrModal');
+  if(modal) modal.classList.remove('show');
+}
+
+function processarFotoOCR(event){
+  var file = event.target.files[0];
+  if(!file){ return; }
+  if(!GEMINI_API_KEY || GEMINI_API_KEY === 'COLE_SUA_CHAVE_AQUI'){
+    toast('⚠️ Chave Gemini não configurada no app.js');
+    return;
+  }
+  var preview = document.getElementById('ocrPreview');
+  var status = document.getElementById('ocrStatus');
+  status.innerHTML = '<div class="ptr-spinner" style="margin:0 auto 8px;"></div>📤 Enviando foto pro Gemini...';
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var base64 = e.target.result.split(',')[1];
+    var mimeType = file.type || 'image/jpeg';
+    preview.innerHTML = '<img src="'+e.target.result+'" style="max-width:100%; max-height:200px; border-radius:8px; border:1px solid var(--border);">';
+    enviarParaGemini(base64, mimeType);
+  };
+  reader.readAsDataURL(file);
+}
+
+function enviarParaGemini(base64, mimeType){
+  var status = document.getElementById('ocrStatus');
+  var prompt = 'Esta imagem contém uma lista de produtos de estoque (requisição/pedido). '+
+    'Extraia CADA item da lista e devolva APENAS no formato exato abaixo, um item por linha, sem numeração nem comentários:\n'+
+    'NOME_DO_PRODUTO QUANTIDADE UNIDADE\n\n'+
+    'Regras importantes:\n'+
+    '- Se a unidade não aparecer, use UN\n'+
+    '- Use apenas estas unidades: UN, KG, L, CX, PCT, FARDO, RL, FD, GL\n'+
+    '- Nome em MAIÚSCULAS\n'+
+    '- Quantidade como número (ex: 5 ou 2.5)\n'+
+    '- Ignore cabeçalhos, datas, assinaturas e itens riscados\n'+
+    '- Se não conseguir ler algum item, pule\n\n'+
+    'Exemplo de saída:\n'+
+    'ARROZ 5 KG\nFEIJAO 10 PCT\nOLEO 2 L';
+
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+GEMINI_API_KEY;
+  var body = {
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inline_data: { mime_type: mimeType, data: base64 } }
+      ]
+    }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+  };
+
+  status.innerHTML = '<div class="ptr-spinner" style="margin:0 auto 8px;"></div>🤖 Gemini está lendo a foto...';
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.error){
+      status.innerHTML = '<span style="color:var(--red);">❌ '+escapeHtml(data.error.message||'Erro Gemini')+'</span>';
+      return;
+    }
+    var texto = '';
+    try {
+      texto = data.candidates[0].content.parts[0].text;
+    } catch(e){
+      status.innerHTML = '<span style="color:var(--red);">❌ Resposta inválida do Gemini</span>';
+      return;
+    }
+    texto = texto.replace(/```[a-z]*\n?/gi,'').replace(/```/g,'').trim();
+    status.innerHTML = '<span style="color:var(--green);">✅ '+texto.split('\n').length+' itens detectados!</span>';
+
+    setTimeout(function(){
+      fecharCameraOCR();
+      if(ocrModoAtual === 'falta'){
+        abrirImportarFaltas(texto);
+      } else {
+        abrirImportarLista();
+        setTimeout(function(){
+          var ta = document.getElementById('importListaTxt');
+          if(ta){
+            ta.value = texto;
+            salvarRascunhoLista();
+          }
+        }, 200);
+      }
+    }, 800);
+  })
+  .catch(function(err){
+    status.innerHTML = '<span style="color:var(--red);">❌ Erro de conexão: '+escapeHtml(err.message||'')+'</span>';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🔴 v15.5 — IMPORTAR LISTA DE FALTAS (texto colado ou via OCR)
+// ══════════════════════════════════════════════════════════════
+function abrirImportarFaltas(textoPre){
+  var modal = document.getElementById('importFaltasModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'importFaltasModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharImportarFaltas()"></div>'+
+    '<div class="mm-card" style="max-width:520px;">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">❌ Importar Lista de Faltas</div>'+
+        '<div class="mm-sub">Cole a lista de itens em falta (1 por linha)</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<label class="mm-label">Formato aceito:</label>'+
+        '<div style="background:rgba(118,118,128,.15); padding:10px; border-radius:8px; font-family:monospace; font-size:0.75rem; margin-bottom:14px; line-height:1.6; color:var(--text-secondary);">'+
+          'ARROZ 5 KG<br>FEIJÃO 10 PCT<br>ÓLEO 2 L'+
+        '</div>'+
+        '<button class="cam-btn" onclick="abrirCameraOCR(\'falta\')" style="width:100%; background:var(--purple); color:#fff; font-weight:700; margin-bottom:10px;">📸 Tirar Foto da Lista (OCR)</button>'+
+        '<label class="mm-label">Ou cole a lista aqui:</label>'+
+        '<textarea id="importFaltasTxt" class="form-field" rows="10" style="font-family:monospace; font-size:0.85rem; min-height:200px; resize:vertical;" placeholder="ARROZ 5 KG&#10;FEIJÃO 10 PCT&#10;...">'+escapeHtml(textoPre||'')+'</textarea>'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharImportarFaltas()">Cancelar</button>'+
+        '<button class="mm-btn mm-confirm" onclick="processarFaltasImportadas()" style="background:var(--red);">❌ Adicionar Faltas</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+  setTimeout(function(){
+    var ta = document.getElementById('importFaltasTxt');
+    if(ta && !textoPre){ ta.focus(); }
+  }, 100);
+}
+function fecharImportarFaltas(){
+  var modal = document.getElementById('importFaltasModal');
+  if(modal) modal.classList.remove('show');
+}
+function processarFaltasImportadas(){
+  var txt = document.getElementById('importFaltasTxt').value.trim();
+  if(!txt){ toast('Cole ou tire foto da lista primeiro'); return; }
+  var linhas = txt.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+  if(linhas.length === 0){ toast('Lista vazia'); return; }
+
+  var adicionados = 0;
+  linhas.forEach(function(linha){
+    var qtd = 1; var nome = linha; var unidade = 'UN';
+    var m = linha.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÀ-ú]{1,5})?$/);
+    var m2 = linha.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+    if(m){
+      nome = m[1].trim();
+      qtd = parseFloat(m[2].replace(',','.'));
+      if(m[3]) unidade = m[3].toUpperCase();
+    } else if(m2){
+      qtd = parseFloat(m2[1].replace(',','.'));
+      nome = m2[2].trim();
+    }
+    if(!nome || !qtd || qtd <= 0) return;
+    itensFalta.push({
+      id: Date.now()+Math.floor(Math.random()*10000)+adicionados,
+      nome: nome.toUpperCase(),
+      quantidade: qtd,
+      unidade: unidade,
+      observacao: ''
+    });
+    adicionados++;
+  });
+  persistirFaltas();
+  fecharImportarFaltas();
+  renderCarrinho();
+  showSuccess('❌', 'Faltas Importadas!', adicionados+' iten'+(adicionados>1?'s':'')+' marcado'+(adicionados>1?'s':'')+' como falta');
 }
 
 // 🔴 v15.2 — IMPORTAR LISTA DE SAÍDA (com persistência + placeholder pra não-cadastrados)
