@@ -195,71 +195,78 @@
     </div>
 
      <!-- ══════ TAB: SAÍDA (CARRINHO E VENCIDOS) ══════ -->        
-    <div class="tab-content" id="contentSaida">
-      
-       <!-- 🔴 v15.1 — Destino + Setor (só aparecem em SAÍDA DE PEDIDO) -->
-<div id="destinoBox" style="display:none;">
-  <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
-  <select id="loteSetorSelect" class="form-field" style="margin-bottom:10px;">
-    <option value="">Selecione o setor…</option>
-  </select>
-  <input type="text" id="loteSetorNovo" class="form-field" placeholder="Nome do novo setor…" style="display:none; margin-bottom:10px;">
-  <button type="button" id="btnConfirmarNovoSetor" onclick="confirmarNovoSetor()" class="cam-btn" style="display:none; margin-bottom:14px; padding:10px; background:var(--green) !important;">✅ Adicionar setor</button>
+<div class="tab-content" id="contentSaida">
+  
+  <!-- 1. CONFIGURAÇÕES DA SAÍDA (TOPO) -->
+  <div style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
+    <label class="form-label" style="margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
+    <select id="loteMotivoSelect" class="form-field" style="margin-bottom:16px;">
+      <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
+      <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
+      <option value="AVARIA">⚠️ Avaria / Perda</option>
+      <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
+    </select>
 
-  <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
-  <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
-    <option value="">Selecione o destino…</option>
-  </select>
-  <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:24px;">
-</div>
+    <!-- 🔴 v15.1 — Destino + Setor (só aparecem em SAÍDA DE PEDIDO) -->
+    <div id="destinoBox" style="display:none;">
+      <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
+      <select id="loteSetorSelect" class="form-field" style="margin-bottom:10px;">
+        <option value="">Selecione o setor…</option>
+      </select>
+      <input type="text" id="loteSetorNovo" class="form-field" placeholder="Nome do novo setor…" style="display:none; margin-bottom:10px;">
+      <button type="button" id="btnConfirmarNovoSetor" onclick="confirmarNovoSetor()" class="cam-btn" style="display:none; margin-bottom:14px; padding:10px; background:var(--green) !important;">✅ Adicionar setor</button>
 
-
-          <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
-        </div>
-      </div>
-
-  <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
-        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar quantidade ou unidade.">?</span></div>
-        <div id="cartList" style="margin-bottom: 24px;"></div>
-        
-        <div style="padding-top: 20px; border-top: .5px solid var(--border);">
-          <label class="form-label" style="margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
-          <select id="loteMotivoSelect" class="form-field" style="margin-bottom:16px;">
-            <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
-            <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
-            <option value="AVARIA">⚠️ Avaria / Perda</option>
-            <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
-          </select>
-
-      <div class="section-label">
-        SAÍDA EM LOTE (CARRINHO) 
-        <span class="help-icon" data-tooltip="Busque pelo nome, clique no produto abaixo ou use o botão Bipar. Depois, selecione o motivo da saída e confirme.">?</span>
-      </div>
-      
-      <div class="ios-card">
-        <div class="ios-card-row" style="display: flex; align-items: center; padding: 12px 16px; gap: 10px;">
-          <div style="flex: 1; min-width: 0;">
-            <input type="text" id="saidaSearch" class="form-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()" style="margin: 0;">
-          </div>
-          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex: 0 0 auto; width: auto; margin: 0; padding: 14px 20px;">📷 Bipar</button>
-        </div>
-      </div>
-
-      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
-        <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
-          <button type="button" class="cam-btn" onclick="toggleFlash()" style="flex: 1; background: #333;">🔦 Flash</button>
-          <button type="button" class="cam-btn" onclick="pararScannerSaida()" style="flex: 1; background: #2c2c2e;">⏹️ Parar</button>
-        </div>
-      </div>
-
-      <div class="section-label">
-        ESTOQUE ATUAL (CLIQUE PARA ADICIONAR)
-        <span class="help-icon" data-tooltip="Toque num produto da lista abaixo para adicioná-lo ao carrinho de saída.">?</span>
-      </div>
-      <div id="saidaList"></div>
-      
+      <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
+      <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
+        <option value="">Selecione o destino…</option>
+      </select>
+      <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:8px;">
     </div>
+  </div>
+
+  <!-- 2. CARRINHO NO MEIO -->
+  <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
+    <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar quantidade ou unidade.">?</span></div>
+    
+    <div id="cartList" style="margin-bottom: 24px;"></div>
+    
+    <!-- Botão de confirmar posicionado logo abaixo dos itens do carrinho -->
+    <div style="padding-top: 16px; border-top: .5px solid var(--border);">
+      <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange); width: 100%;">✅ Confirmar Baixa Total</button>
+    </div>
+  </div>
+
+  <!-- 3. BUSCA E SCANNER (ABAIXO DO CARRINHO) -->
+  <div class="section-label">
+    ADICIONAR ITEM AO CARRINHO 
+    <span class="help-icon" data-tooltip="Busque pelo nome, clique no produto abaixo ou use o botão Bipar.">?</span>
+  </div>
+  
+  <div class="ios-card" style="margin-bottom: 16px;">
+    <div class="ios-card-row" style="display: flex; align-items: center; padding: 12px 16px; gap: 10px;">
+      <div style="flex: 1; min-width: 0;">
+        <input type="text" id="saidaSearch" class="form-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()" style="margin: 0;">
+      </div>
+      <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex: 0 0 auto; width: auto; margin: 0; padding: 14px 20px;">📷 Bipar</button>
+    </div>
+  </div>
+
+  <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
+    <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <button type="button" class="cam-btn" onclick="toggleFlash()" style="flex: 1; background: #333;">🔦 Flash</button>
+      <button type="button" class="cam-btn" onclick="pararScannerSaida()" style="flex: 1; background: #2c2c2e;">⏹️ Parar</button>
+    </div>
+  </div>
+
+  <!-- 4. LISTA DE ITENS DO ESTOQUE (FINAL) -->
+  <div class="section-label">
+    ESTOQUE ATUAL (CLIQUE PARA ADICIONAR)
+    <span class="help-icon" data-tooltip="Toque num produto da lista abaixo para adicioná-lo ao carrinho de saída.">?</span>
+  </div>
+  <div id="saidaList"></div>
+  
+</div>
           
     <!-- ══════ TAB: SAÍDA RÁPIDA (M6 — v15.0) ══════ -->
     <div class="tab-content" id="contentRapida">
