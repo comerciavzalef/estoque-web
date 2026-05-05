@@ -1632,7 +1632,7 @@ function enviarAuditoria() {
     .finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
 }
 
-ffunction toggleDestinoVisibilidade(){
+function toggleDestinoVisibilidade(){
   var motivoSel = document.getElementById('loteMotivoSelect');
   var box = document.getElementById('destinoBox');
   var setorBox = document.getElementById('setorBox');
