@@ -232,13 +232,22 @@
           </select>
 
           <!-- 🔴 v15.0 — Destino com select padrão (sem OBRAS) + campo livre -->
-          <div id="destinoBox" style="display:none;">
-            <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
-            <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
-              <option value="">Selecione o destino…</option>
-            </select>
-            <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:24px;">
-          </div>
+       <!-- 🔴 v15.1 — Destino + Setor (só aparecem em SAÍDA DE PEDIDO) -->
+<div id="destinoBox" style="display:none;">
+  <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
+  <select id="loteSetorSelect" class="form-field" style="margin-bottom:10px;">
+    <option value="">Selecione o setor…</option>
+  </select>
+  <input type="text" id="loteSetorNovo" class="form-field" placeholder="Nome do novo setor…" style="display:none; margin-bottom:10px;">
+  <button type="button" id="btnConfirmarNovoSetor" onclick="confirmarNovoSetor()" class="cam-btn" style="display:none; margin-bottom:14px; padding:10px; background:var(--green) !important;">✅ Adicionar setor</button>
+
+  <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
+  <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
+    <option value="">Selecione o destino…</option>
+  </select>
+  <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:24px;">
+</div>
+
 
           <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange);">✅ Confirmar Baixa Total</button>
         </div>
