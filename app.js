@@ -969,12 +969,10 @@ function abrirMiniModal(ctx){
         '<button class="mm-btn mm-confirm" onclick="miniModalConfirmar()">Confirmar</button>'+
       '</div>' +
     '</div>';
-  modal.classList.add('show');
-  setTimeout(function(){
-    var inp = document.getElementById('mmQtd');
-    if(inp){ inp.focus(); inp.select(); }
-  }, 100);
+    modal.classList.add('show');
+  // 🔴 v15.4 — Não abre teclado automaticamente; só quando clicar no campo
 }
+
 function fecharMiniModal(){
   var modal = document.getElementById('miniModal');
   if(modal) modal.classList.remove('show');
