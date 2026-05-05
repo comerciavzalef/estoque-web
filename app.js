@@ -454,6 +454,20 @@ function setBadge(on) {
   b.className = 'badge ' + (on ? 'badge-online' : 'badge-offline');
 }
 
+// 🔴 v15.2 — Sincroniza carrinho com estoque após sync
+function sincronizarCarrinhoComEstoque(){
+  if(!dadosEstoque || !dadosEstoque.produtos) return;
+  carrinhoSaida.forEach(function(item){
+    if(item.pendenteCadastro) return;
+    var p = dadosEstoque.produtos.find(function(x){ return x.linha === item.linha; });
+    if(p){
+      item.max = p.quantidade;
+      item.overStock = (item.quantidadeBase || item.quantidade) > p.quantidade;
+    }
+  });
+  persistirCarrinho();
+}
+
 function renderPainel(d) {
   if (!d) return;
   var alertas = d.alertas || [];
@@ -823,6 +837,7 @@ function adicionarAoCarrinho(linha) {
     edicao: !!existente
   });
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // 🔴 v15.0 — MINI-MODAL (Quantidade + Unidade + Fator)
