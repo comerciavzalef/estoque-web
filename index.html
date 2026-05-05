@@ -194,8 +194,10 @@
       <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Salvar Entrada</button>
     </div>
 
-     <!-- ══════ TAB: SAÍDA (CARRINHO E VENCIDOS) ══════ -->
-    <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
+     <!-- ══════ TAB: SAÍDA (CARRINHO E VENCIDOS) ══════ -->        
+    <div class="tab-content" id="contentSaida">
+
+      <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
         <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar quantidade ou unidade.">?</span></div>
         <div id="cartList" style="margin-bottom: 24px;"></div>
         
@@ -207,8 +209,6 @@
             <option value="AVARIA">⚠️ Avaria / Perda</option>
             <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
           </select>
-          
-    <div class="tab-content" id="contentSaida">
       
       <div class="section-label">
         SAÍDA EM LOTE (CARRINHO) 
