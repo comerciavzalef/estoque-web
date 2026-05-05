@@ -1,29 +1,28 @@
 // ══════════════════════════════════════════════════════════════
-//  ESTOQUE DIGITAL — app.js v15.0
+//  ESTOQUE DIGITAL — app.js v15.7 (UX FLASH)
 //  Grupo Carlos Vaz — CRV/LAS
-//  Mudanças v15.0:
-//   1. Mini-modal qtd + unidade (Híbrido) com fator de conversão
-//   2. Editar item do carrinho com 1 toque
-//   3. Alerta de Auditoria Pendente (over-stock) + beep + banner
-//   4. Histórico por Movimento (M1) com cards e impressão
-//   5. Remover OBRAS do destino padrão
-//   6. Ordenação: VENCIDO→CRÍTICO→ATENÇÃO→MONITORAR→OK→ZERADO
-//   7. Pull-to-refresh Apple-style
-//   8. Saída Rápida (M6) com cadastro rápido
-//   9. Must-fixes: double-click guard, destino obrigatório, carrinho persistido
+//  Mudanças v15.7:
+//   - Cache local instantâneo (Stale-While-Revalidate)
+//   - Removida duplicata de restaurarCarrinho
+//   - Object.assign em vez de spread (compat)
+//   - Skeleton loaders
+//   - Debounce em filtros de busca
+//   - Laura cadastrada
+//   - Hashes sincronizados com Apps Script
 // ══════════════════════════════════════════════════════════════
 
 var API_URL = 'https://script.google.com/macros/s/AKfycbyvw-6uBYct475K2nv5J-U2z39KHxbNOCqkVMaPl6MiFGnd3zTMiLPr5ivMfKNDZ55B/exec';
 var SESSION_KEY = 'cv_estoque_sessao';
 var CART_KEY = 'cv_estoque_carrinho';
 var AUDIT_PENDING_KEY = 'cv_auditoria_pendente';
-var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao'; // 🔴 v15.2 — persiste o texto colado
-var FALTAS_KEY = 'cv_estoque_faltas'; // 🔴 v15.4 — itens em falta no carrinho
-var GEMINI_API_KEY = 'AIzaSyCAXte0VgEJ_JWFWewtrlCg1BtqbOaRKbc'; // 🔴 v15.5 — OCR via Gemini
-var GEMINI_MODEL = 'gemini-2.0-flash'; // 🔴 v15.5 — modelo estável e gratuito
+var IMPORT_LISTA_KEY = 'cv_estoque_lista_importacao';
+var FALTAS_KEY = 'cv_estoque_faltas';
+var GEMINI_API_KEY = 'AIzaSyCAXte0VgEJ_JWFWewtrlCg1BtqbOaRKbc';
+var GEMINI_MODEL = 'gemini-2.0-flash';
 
-
-
+// 🚀 v15.7 — Cache UX Flash
+var SYNC_CACHE_KEY = 'cv_estoque_sync_cache';
+var SYNC_CACHE_TIME_KEY = 'cv_estoque_sync_time';
 
 var CREDS_OFFLINE = {
   "LUIZ":   "4e94d7cf6a395fd8e12ad235143b25e60de3a9ac18a5cb6d090325138d22a7a1",
@@ -35,29 +34,12 @@ var CREDS_OFFLINE = {
   "GESTOR": "704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157"
 };
 
-
-
-// 🔴 v15.0 — Unidades disponíveis no mini-modal
 var UNIDADES_DISPONIVEIS = ['UN','KG','L','CX','PCT','FARDO','RL','FD','GL'];
-
-// 🔴 v15.0 — Ordem de prioridade dos status (m4)
 var STATUS_ORDEM = { 'VENCIDO':0, 'CRÍTICO':1, 'ATENÇÃO':2, 'MONITORAR':3, 'OK':4, 'ZERADO':5 };
-
-// 🔴 v15.0 — Destinos padrão (sem OBRAS — m2)
-var DESTINOS_PADRAO = [
-  'IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…'
-];
-
-// 🔴 v15.3 — Destinos de Consumo Interno
+var DESTINOS_PADRAO = ['IBÍCUI','NOVA CANAÃ','BOA NOVA','DARIO MEIRA','OUTRO…'];
 var DESTINOS_CONSUMO = ['SÍTIO', 'ESCRITÓRIO', 'MERCADO', 'OUTRO…'];
-
-
-// 🔴 v15.1 — Setores de Requisição (padrão da prefeitura/órgão)
 var SETORES_REQ_KEY = 'cv_estoque_setores_req';
-var SETORES_REQ_PADRAO = [
-  'EDUCAÇÃO','SAÚDE','ASSISTÊNCIA SOCIAL','ADMINISTRAÇÃO','INFRAESTRUTURA'
-];
-
+var SETORES_REQ_PADRAO = ['EDUCAÇÃO','SAÚDE','ASSISTÊNCIA SOCIAL','ADMINISTRAÇÃO','INFRAESTRUTURA'];
 
 var sessao = null;
 var dadosEstoque = null;
@@ -69,11 +51,21 @@ var flashLigado = false;
 var html5QrcodeScannerEntrada = null;
 var html5QrcodeScannerSaida = null;
 var carrinhoSaida = [];
-var itensFalta = []; // 🔴 v15.4
-var auditoriasPendentes = []; // 🔴 v15.0
-var miniModalContext = null;  // 🔴 v15.0 — contexto do mini-modal aberto
-var ptrState = { startY:0, currentY:0, pulling:false, ready:false }; // 🔴 v15.0
-var audioCtx = null;          // 🔴 v15.0 — Web Audio API singleton
+var itensFalta = [];
+var auditoriasPendentes = [];
+var miniModalContext = null;
+var ptrState = { startY:0, currentY:0, pulling:false, ready:false };
+var audioCtx = null;
+
+// 🚀 v15.7 — Debounce helper
+function debounce(fn, wait){
+  var timer = null;
+  return function(){
+    var ctx = this, args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function(){ fn.apply(ctx, args); }, wait);
+  };
+}
 
 // ── Restaura sessão se já estava logado ──
 (function () {
@@ -92,16 +84,13 @@ var audioCtx = null;          // 🔴 v15.0 — Web Audio API singleton
   }
 })();
 
-// ── Inicializa telemetria God Mode ──
 document.addEventListener('DOMContentLoaded', function () {
   if (window.GodModeTracker) {
     GodModeTracker.init({ idCliente: 'crv', aplicativo: 'Estoque' });
   }
-  // 🔴 v15.0 — Restaura carrinho e s pendentes do localStorage
   restaurarCarrinho();
-  restaurarFaltas(); // 🔴 v15.4
-  restaurarAuditoriasPendentes();  
-
+  restaurarFaltas();
+  restaurarAuditoriasPendentes();
 });
 
 function toggleSenha() {
@@ -124,6 +113,34 @@ async function fazerLogin() {
 
   try {
     var senhaHash = await gerarHash(pass);
+
+    // 🚀 v15.7 — Login OFFLINE-FIRST: tenta local primeiro (instantâneo)
+    if (CREDS_OFFLINE[user] && CREDS_OFFLINE[user] === senhaHash) {
+      sessao = { nome: user, nivel: user === 'GESTOR' ? 'gestor' : 'funcionario', senha: senhaHash };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessao));
+      esconderLogin();
+      iniciarApp();
+      btn.disabled = false; btn.textContent = 'Entrar';
+      // Valida online em background (sem bloquear UI)
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ acao: 'login', usuario: user, senha: senhaHash }),
+        redirect: 'follow'
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if(d.status === 'ok' && d.nivel){
+          sessao.nivel = d.nivel;
+          localStorage.setItem(SESSION_KEY, JSON.stringify(sessao));
+          if (sessao.nivel === 'gestor') {
+            var bg = document.getElementById('badgeGestor');
+            if(bg) bg.style.display = '';
+          }
+        }
+      }).catch(function(){});
+      return;
+    }
+
+    // Se não bateu local, valida online
     fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -146,17 +163,10 @@ async function fazerLogin() {
       }
     })
     .catch(function () {
-      if (CREDS_OFFLINE[user] && CREDS_OFFLINE[user] === senhaHash) {
-        sessao = { nome: user, nivel: user === 'GESTOR' ? 'gestor' : 'funcionario', senha: senhaHash };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(sessao));
-        esconderLogin();
-        iniciarApp();
-      } else {
-        err.textContent = 'Sem conexão e credenciais inválidas';
-        shakeLogin();
-        if (window.GodModeTracker) {
-          GodModeTracker.loginFailure({ usuario: user, motivo: 'Sem conexão e credenciais inválidas' });
-        }
+      err.textContent = 'Sem conexão e credenciais inválidas';
+      shakeLogin();
+      if (window.GodModeTracker) {
+        GodModeTracker.loginFailure({ usuario: user, motivo: 'Sem conexão e credenciais inválidas' });
       }
     })
     .finally(function () { btn.disabled = false; btn.textContent = 'Entrar'; });
@@ -186,10 +196,10 @@ function logout() {
   dadosEstoque = null;
   carrinhoSaida = [];
   persistirCarrinho();
-  itensFalta = []; // 🔴 v15.4
+  itensFalta = [];
   persistirFaltas();
   localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem('cv_estoque_cache');
+  // 🚀 v15.7 — NÃO remove o cache de sync no logout (próximo login será instantâneo)
   if (refreshInterval) clearInterval(refreshInterval);
   stopFotoCamera();
   pararScannerEntrada();
@@ -207,13 +217,8 @@ function logout() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.0 — PERSISTÊNCIA DO CARRINHO
+// PERSISTÊNCIA DO CARRINHO
 // ══════════════════════════════════════════════════════════════
-function persistirCarrinho(){
-  try { localStorage.setItem(CART_KEY, JSON.stringify(carrinhoSaida)); }
-  catch(e){}
-}
-
 function persistirCarrinho(){
   try { localStorage.setItem(CART_KEY, JSON.stringify(carrinhoSaida)); }
   catch(e){}
@@ -228,9 +233,8 @@ function restaurarCarrinho(){
   } catch(e){ carrinhoSaida = []; }
 }
 
-
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.4 — ITENS EM FALTA
+// ITENS EM FALTA
 // ══════════════════════════════════════════════════════════════
 function persistirFaltas(){
   try { localStorage.setItem(FALTAS_KEY, JSON.stringify(itensFalta)); } catch(e){}
@@ -315,7 +319,7 @@ function removerItemFalta(id){
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.0 — AUDITORIA PENDENTE (over-stock)
+// AUDITORIA PENDENTE
 // ══════════════════════════════════════════════════════════════
 function persistirAuditoriasPendentes(){
   try { localStorage.setItem(AUDIT_PENDING_KEY, JSON.stringify(auditoriasPendentes)); }
@@ -395,12 +399,10 @@ function abrirListaAuditoriasPendentes(){
 }
 function resolverAuditoriaPendente(linha){
   fecharDetalhe();
-  // Restaura título original
   document.getElementById('detalheModal').querySelector('.modal-bar h2').textContent = '📋 Detalhes';
   abrirAuditoriaModal(linha);
 }
 
-// 🔴 v15.0 — Beep Web Audio
 function tocarBeep(){
   try {
     if(!audioCtx){
@@ -418,7 +420,6 @@ function tocarBeep(){
   } catch(e){}
 }
 
-// 🔴 v15.0 — Inteligência de agrupamento (mantida)
 function limparDuplicatasZeradas(d) {
   if (!d || !d.produtos) return d;
   var temSaldo = function (nome, marca) {
@@ -471,15 +472,30 @@ function iniciarApp() {
   document.getElementById('ldScreen').classList.remove('hidden');
   document.getElementById('mainApp').style.display = 'block';
   var ub = document.getElementById('userBadge');
-if(ub) ub.textContent = sessao.nome;
+  if(ub) ub.textContent = sessao.nome;
 
   if (sessao.nivel === 'gestor') document.getElementById('badgeGestor').style.display = '';
-  var cache = localStorage.getItem('cv_estoque_cache');
-  if (cache) { dadosEstoque = limparDuplicatasZeradas(JSON.parse(cache)); renderPainel(dadosEstoque); }
+
+  // 🚀 v15.7 — UX FLASH: usa cache mais novo (SYNC_CACHE) primeiro
+  var cacheNovo = localStorage.getItem(SYNC_CACHE_KEY);
+  if(cacheNovo){
+    try {
+      dadosEstoque = JSON.parse(cacheNovo);
+      renderPainel(dadosEstoque);
+    } catch(e){}
+  } else {
+    var cacheAntigo = localStorage.getItem('cv_estoque_cache');
+    if (cacheAntigo) {
+      try {
+        dadosEstoque = limparDuplicatasZeradas(JSON.parse(cacheAntigo));
+        renderPainel(dadosEstoque);
+      } catch(e){}
+    }
+  }
+
   document.getElementById('ldScreen').classList.add('hidden');
   syncDados();
   refreshInterval = setInterval(syncDados, 300000);
-  // 🔴 v15.0
   renderBannerAuditoria();
   inicializarPullToRefresh();
   popularDestinosSelect();
@@ -503,10 +519,7 @@ function switchTab(tab) {
   if (tab === 'comprovantes') { carregarComprovantes(); }
 }
 
-// 🚀 v15.7 — Sync com cache local (UX Flash)
-var SYNC_CACHE_KEY = 'cv_estoque_sync_cache';
-var SYNC_CACHE_TIME_KEY = 'cv_estoque_sync_time';
-
+// 🚀 v15.7 — Sync com cache local (UX Flash / Stale-While-Revalidate)
 function syncDados(forceFresh) {
   // 1️⃣ INSTANTÂNEO: carrega cache local primeiro
   if(!forceFresh){
@@ -538,7 +551,6 @@ function syncDados(forceFresh) {
       sincronizarCarrinhoComEstoque();
       renderPainel(d);
 
-      // Re-renderiza aba ativa
       var abaAtiva = document.querySelector('.tab-btn.active');
       if(abaAtiva){
         var idAba = abaAtiva.id || '';
@@ -568,7 +580,6 @@ function setBadge(on) {
   b.className = 'badge ' + (on ? 'badge-online' : 'badge-offline');
 }
 
-// 🔴 v15.2 — Sincroniza carrinho com estoque após sync
 function sincronizarCarrinhoComEstoque(){
   if(!dadosEstoque || !dadosEstoque.produtos) return;
   carrinhoSaida.forEach(function(item){
@@ -618,7 +629,6 @@ function renderPainel(d) {
   document.getElementById('syncTime').textContent = d.timestamp ? 'Atualizado: ' + d.timestamp : '';
 }
 
-// 🔴 v15.0 — Helper de prioridade de status (m4)
 function statusPrioridade(status, qtd){
   if(qtd <= 0) return STATUS_ORDEM['ZERADO'];
   return STATUS_ORDEM[status] !== undefined ? STATUS_ORDEM[status] : STATUS_ORDEM['OK'];
@@ -631,7 +641,6 @@ function renderProdutos(produtos) {
     return;
   }
 
-  // Agrupa por nome+marca
   var grupos = {};
   produtos.forEach(function (p) {
     var chave = (p.nome + '_' + p.marca).toUpperCase();
@@ -652,7 +661,6 @@ function renderProdutos(produtos) {
     }
   });
 
-  // 🔴 v15.0 — Ordenação m4: status prioritário, depois alfabético
   var arr = Object.keys(grupos).map(function(k){ return grupos[k]; });
   arr.sort(function(a, b){
     var pa = statusPrioridade(a.melhorStatus, a.quantidadeTotal);
@@ -716,7 +724,8 @@ function getStatusIcon(status, qtd) {
   }
 }
 
-function filtrarProdutos() {
+// 🚀 v15.7 — Filtro com debounce (não trava digitação)
+var filtrarProdutos = debounce(function() {
   if (!dadosEstoque) return;
   var termo = document.getElementById('searchInput').value.toLowerCase().trim();
   if (!termo) { renderProdutos(dadosEstoque.produtos); return; }
@@ -728,7 +737,7 @@ function filtrarProdutos() {
       (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
   });
   renderProdutos(filtrados);
-}
+}, 200);
 
 function toggleFlash() {
   var leitor = null;
@@ -850,7 +859,7 @@ function salvarEdicao() {
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      if (d.status === 'ok') { fecharEditar(); showSuccess('✅', d.mensagem, ''); syncDados(); }
+      if (d.status === 'ok') { fecharEditar(); showSuccess('✅', d.mensagem, ''); syncDados(true); }
       else { toast(d.msg || 'Erro'); }
     })
     .catch(function (err) {
@@ -868,7 +877,7 @@ function confirmarExcluir(linha) {
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'excluir', senha: sessao.senha, linha: linha }), redirect: 'follow' })
     .then(function (r) { return r.json(); })
     .then(function (d) {
-      if (d.status === 'ok') { showSuccess('🗑️', d.mensagem, ''); syncDados(); }
+      if (d.status === 'ok') { showSuccess('🗑️', d.mensagem, ''); syncDados(true); }
       else { toast('Erro ao excluir'); }
     })
     .catch(function () { toast('Sem conexão'); });
@@ -905,7 +914,6 @@ function renderSaidaList(produtos) {
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">🚫</div><div class="empty-text">Estoque zerado</div></div>';
     return;
   }
-  // m4
   arr.sort(function(a, b){
     var pa = statusPrioridade(a.melhorStatus, a.quantidadeTotal);
     var pb = statusPrioridade(b.melhorStatus, b.quantidadeTotal);
@@ -920,7 +928,8 @@ function renderSaidaList(produtos) {
   el.innerHTML = html;
 }
 
-function filtrarSaida() {
+// 🚀 v15.7 — Filtro com debounce
+var filtrarSaida = debounce(function() {
   if (!dadosEstoque) return;
   var termo = document.getElementById('saidaSearch').value.toLowerCase().trim();
   if (!termo) { renderSaidaList(dadosEstoque.produtos); return; }
@@ -931,9 +940,8 @@ function filtrarSaida() {
       (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1)) && p.quantidade > 0;
   });
   renderSaidaList(filtrados);
-}
+}, 200);
 
-// 🔴 v15.0 — Adicionar ao carrinho agora abre o mini-modal
 function adicionarAoCarrinho(linha) {
   if (!dadosEstoque) return;
   var p = dadosEstoque.produtos.find(function (x) { return x.linha === linha; });
@@ -952,9 +960,8 @@ function adicionarAoCarrinho(linha) {
   });
 }
 
-
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.0 — MINI-MODAL (Quantidade + Unidade + Fator)
+// MINI-MODAL
 // ══════════════════════════════════════════════════════════════
 function abrirMiniModal(ctx){
   miniModalContext = ctx;
@@ -999,8 +1006,7 @@ function abrirMiniModal(ctx){
         '<button class="mm-btn mm-confirm" onclick="miniModalConfirmar()">Confirmar</button>'+
       '</div>' +
     '</div>';
-    modal.classList.add('show');
-  // 🔴 v15.4 — Não abre teclado automaticamente; só quando clicar no campo
+  modal.classList.add('show');
 }
 
 function fecharMiniModal(){
@@ -1053,18 +1059,16 @@ function miniModalConfirmar(){
   var qtdBase = qtdDigitada * fator;
   var overStock = qtdBase > ctx.estoqueAtual;
 
-  // Salva fator no servidor (e local) se diferente da base
   if(unidade !== ctx.unidadeBase && fator !== 1){
     var conhecido = (ctx.fatoresConversao||{})[unidade];
     if(conhecido !== fator){
       salvarFatorNoServidor(ctx.linha, unidade, fator);
-      // Atualiza cache local
       if(dadosEstoque && dadosEstoque.produtos){
         var prod = dadosEstoque.produtos.find(function(x){ return x.linha === ctx.linha; });
         if(prod){
           prod.fatoresConversao = prod.fatoresConversao || {};
           prod.fatoresConversao[unidade] = fator;
-          localStorage.setItem('cv_estoque_cache', JSON.stringify(dadosEstoque));
+          try { localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify(dadosEstoque)); } catch(e){}
         }
       }
     }
@@ -1160,7 +1164,7 @@ function renderCarrinho() {
     });
   }
 
-   h += '<div style="display:flex; gap:8px; margin-top:10px;">'+
+  h += '<div style="display:flex; gap:8px; margin-top:10px;">'+
        '<button class="cam-btn" onclick="abrirModalFalta()" style="flex:1; background:rgba(255,69,58,0.1); color:var(--red); font-weight:700; border:1px dashed var(--red);">❌ + 1 Item</button>'+
        '<button class="cam-btn" onclick="abrirImportarFaltas()" style="flex:1; background:rgba(255,69,58,0.1); color:var(--red); font-weight:700; border:1px dashed var(--red);">📋 Importar Lista</button>'+
        '</div>';
@@ -1174,8 +1178,7 @@ function renderCarrinho() {
 function abrirMiniModalEdicao(linha){
   var item = carrinhoSaida.find(function(x){ return x.linha === linha; });
   if(!item) return;
-  
-  // 🔴 Item placeholder (não cadastrado) — abre modal simplificado
+
   if(item.pendenteCadastro){
     abrirMiniModal({
       linha: item.linha,
@@ -1190,7 +1193,7 @@ function abrirMiniModalEdicao(linha){
     });
     return;
   }
-  
+
   if(!dadosEstoque) return;
   var p = dadosEstoque.produtos.find(function(x){ return x.linha === linha; });
   if(!p){ toast('Produto não encontrado'); return; }
@@ -1206,16 +1209,12 @@ function abrirMiniModalEdicao(linha){
     edicao: true
   });
 }
-
-
 // ══════════════════════════════════════════════════════════════
 // CONFIRMAR SAÍDA EM LOTE
 // ══════════════════════════════════════════════════════════════
 function confirmarSaidaLote() {
   if (carrinhoSaida.length === 0) return;
   var btn = document.getElementById('btnConfirmarLote');
-
-  // Double-click guard
   if(btn && btn.disabled) return;
 
   var motivoInput = document.getElementById('loteMotivoSelect') || document.getElementById('loteMotivo');
@@ -1224,7 +1223,6 @@ function confirmarSaidaLote() {
   var destinoInput = document.getElementById('loteMotivoObs');
   var motivoValue = motivoInput ? motivoInput.value : 'SAÍDA';
 
-  // Resolve destino
   var destinoFinal = '';
   if(destinoSelect){
     var sel = destinoSelect.value;
@@ -1239,7 +1237,6 @@ function confirmarSaidaLote() {
     destinoFinal = destinoInput.value.trim();
   }
 
-  // 🔴 v15.1 — Resolve setor solicitante
   var setorFinal = '';
   if(setorSelect){
     if(setorSelect.value === '__novo__'){
@@ -1249,7 +1246,6 @@ function confirmarSaidaLote() {
     setorFinal = setorSelect.value || '';
   }
 
-   // 🔴 v15.3 — Validações para SAÍDA DE PEDIDO e CONSUMO INTERNO
   if(motivoValue === 'SAÍDA DE PEDIDO'){
     if(!setorFinal){
       toast('⚠️ Selecione o setor solicitante!');
@@ -1271,16 +1267,15 @@ function confirmarSaidaLote() {
   }
   if(!destinoFinal) destinoFinal = 'Não informado';
 
-  // 🔴 v15.1 — Motivo final concatenado: SAÍDA DE PEDIDO - [SETOR] - [DESTINO]
   var motivoFinal = motivoValue;
   if(setorFinal) motivoFinal += ' - ' + setorFinal;
   if (destinoFinal !== 'Não informado') { motivoFinal += ' - ' + destinoFinal; }
 
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 
-  var faltasParaRomaneio = JSON.parse(JSON.stringify(itensFalta)); // 🔴 v15.4
+  var faltasParaRomaneio = JSON.parse(JSON.stringify(itensFalta));
   var itensParaRomaneio = JSON.parse(JSON.stringify(carrinhoSaida));
-    // 🔴 v15.6 — Filtra itens "sem cadastro" — eles vão SÓ pro comprovante, não geram movimento
+
   var itensPayload = carrinhoSaida
     .filter(function(i){ return !i.pendenteCadastro && i.linha > 0; })
     .map(function (i) {
@@ -1293,17 +1288,15 @@ function confirmarSaidaLote() {
       };
     });
 
-    // 🔴 v15.6 — Só reduz estoque de itens cadastrados
   carrinhoSaida.forEach(function (item) {
     if(item.pendenteCadastro || item.linha <= 0) return;
     var p = dadosEstoque.produtos.find(function (x) { return x.linha === item.linha; });
     if (p) p.quantidade -= (item.quantidadeBase || (item.quantidade * (item.fator||1)));
   });
 
-
   carrinhoSaida = [];
   persistirCarrinho();
-  itensFalta = []; // 🔴 v15.4
+  itensFalta = [];
   persistirFaltas();
   if (motivoInput) motivoInput.value = 'SAÍDA DE PEDIDO';
   if (setorSelect) setorSelect.value = '';
@@ -1313,10 +1306,9 @@ function confirmarSaidaLote() {
   toggleNovoSetorBox();
   renderCarrinho(); renderSaidaList(dadosEstoque.produtos); renderPainel(dadosEstoque);
 
-        if (motivoValue === 'SAÍDA DE PEDIDO') {
+  if (motivoValue === 'SAÍDA DE PEDIDO') {
     showSuccess('🖨️', 'Pedido Separado!', 'Gerando comprovante de entrega...');
     gerarComprovantePedido(itensParaRomaneio, destinoFinal, setorFinal, faltasParaRomaneio);
-    // 🔴 v15.6 — Salva comprovante na planilha
     salvarComprovanteServidor({
       operador: sessao.nome,
       motivo: motivoValue,
@@ -1336,7 +1328,7 @@ function confirmarSaidaLote() {
     redirect: 'follow'
   })
     .then(function (r) { return r.json(); })
-    .then(function (d) { syncDados(); })
+    .then(function (d) { syncDados(true); })
     .catch(function (err) {
       toast('Sincronizando em 2º plano...');
       if (window.GodModeTracker) {
@@ -1348,9 +1340,6 @@ function confirmarSaidaLote() {
     });
 }
 
-
-// 🔴 v15.0 — Popular select de destinos sem OBRAS
-// 🔴 v15.1 — Popula destinos E setores de requisição
 function popularDestinosSelect(){
   var sel = document.getElementById('loteDestinoSelect');
   if(sel && sel.options.length <= 1){
@@ -1362,10 +1351,7 @@ function popularDestinosSelect(){
     });
     sel.addEventListener('change', toggleDestinoOutro);
   }
-
-  // 🔴 v15.1 — Setores
   popularSetoresReqSelect();
-
   var motivoSel = document.getElementById('loteMotivoSelect');
   if(motivoSel){
     motivoSel.addEventListener('change', toggleDestinoVisibilidade);
@@ -1373,12 +1359,10 @@ function popularDestinosSelect(){
   }
 }
 
-// 🔴 v15.1 — Setores de Requisição
 function getSetoresReq(){
   try {
     var custom = JSON.parse(localStorage.getItem(SETORES_REQ_KEY) || '[]');
     if(!Array.isArray(custom)) custom = [];
-    // mescla e tira duplicatas
     var todos = SETORES_REQ_PADRAO.concat(custom);
     var unicos = [];
     todos.forEach(function(s){
@@ -1391,7 +1375,7 @@ function getSetoresReq(){
 function salvarSetorCustom(nome){
   var up = (nome||'').toString().trim().toUpperCase();
   if(!up) return false;
-  if(SETORES_REQ_PADRAO.indexOf(up) >= 0) return false; // já é padrão
+  if(SETORES_REQ_PADRAO.indexOf(up) >= 0) return false;
   try {
     var custom = JSON.parse(localStorage.getItem(SETORES_REQ_KEY) || '[]');
     if(!Array.isArray(custom)) custom = [];
@@ -1418,7 +1402,6 @@ function popularSetoresReqSelect(){
   sel.appendChild(optAdd);
   if(atual && atual !== '__novo__') sel.value = atual;
 
-  // bind change só uma vez
   if(!sel.dataset.bound){
     sel.addEventListener('change', toggleNovoSetorBox);
     sel.dataset.bound = '1';
@@ -1453,7 +1436,6 @@ function confirmarNovoSetor(){
   document.getElementById('btnConfirmarNovoSetor').style.display = 'none';
   toast('✅ Setor "' + nome + '" adicionado.');
 }
-
 
 // ══════════════════════════════════════════════════════════════
 // AUDITORIA
@@ -1493,7 +1475,7 @@ function renderAuditoriaList(produtos) {
   el.innerHTML = html;
 }
 
-function filtrarAuditoria() {
+var filtrarAuditoria = debounce(function() {
   if (!dadosEstoque) return;
   var termo = document.getElementById('auditoriaSearch').value.toLowerCase().trim();
   if (!termo) { renderAuditoriaList(dadosEstoque.produtos); return; }
@@ -1504,7 +1486,7 @@ function filtrarAuditoria() {
       (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
   });
   renderAuditoriaList(filtrados);
-}
+}, 200);
 
 function abrirAuditoriaModal(linha) {
   if (!dadosEstoque) return;
@@ -1532,7 +1514,6 @@ function enviarAuditoria() {
       if (d.status === 'ok') {
         fecharAuditoria();
         if (d.match) {
-          // 🔴 v15.0 — Bateu: remove da lista de pendentes
           removerAuditoriaPendente(linha);
           showSuccess('✅', 'Tudo Certo!', d.msg);
         } else {
@@ -1544,12 +1525,10 @@ function enviarAuditoria() {
             var prod = dadosEstoque.produtos.find(function (x) { return x.linha === linha; });
             if (prod) prod.quantidade = qtd;
             renderPainel(dadosEstoque);
-            // 🔴 v15.0 — Ajuste resolve a auditoria pendente
             removerAuditoriaPendente(linha);
             showSuccess('🔄', 'Estoque Ajustado!', 'O saldo corrigido para ' + qtd + '.');
-            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome, motivo:'Auditoria' }), redirect: 'follow' }).then(syncDados);
+            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome, motivo:'Auditoria' }), redirect: 'follow' }).then(function(){ syncDados(true); });
           } else {
-            // Aceita a divergência sem ajustar — também tira da fila (gestor já viu)
             removerAuditoriaPendente(linha);
             showSuccess('⚠️', 'Apenas Registrado', 'A diferença foi enviada ao Gestor.');
           }
@@ -1560,13 +1539,10 @@ function enviarAuditoria() {
     .finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
 }
 
-// 🔴 v15.1 — Mostra/esconde a caixa de destino+setor conforme o motivo
-// 🔴 v15.3 — Mostra/esconde destino conforme o motivo (PEDIDO ou CONSUMO)
 function toggleDestinoVisibilidade(){
   var motivoSel = document.getElementById('loteMotivoSelect');
   var box = document.getElementById('destinoBox');
-  var setorBox = document.getElementById('setorBox'); // se existir
-  var destinoSel = document.getElementById('loteDestinoSelect');
+  var setorBox = document.getElementById('setorBox');
   if(!motivoSel || !box) return;
 
   var motivo = motivoSel.value;
@@ -1577,7 +1553,7 @@ function toggleDestinoVisibilidade(){
     popularDestinosPorMotivo('PEDIDO');
   } else if(motivo === 'CONSUMO INTERNO' || motivo === 'CONSUMO'){
     box.style.display = 'block';
-    if(setorBox) setorBox.style.display = 'none'; // setor não é obrigatório aqui
+    if(setorBox) setorBox.style.display = 'none';
     popularDestinosPorMotivo('CONSUMO');
   } else {
     box.style.display = 'none';
@@ -1585,7 +1561,6 @@ function toggleDestinoVisibilidade(){
   }
 }
 
-// 🔴 v15.3 — Popula o select de destino conforme o motivo escolhido
 function popularDestinosPorMotivo(tipo){
   var sel = document.getElementById('loteDestinoSelect');
   if(!sel) return;
@@ -1598,8 +1573,6 @@ function popularDestinosPorMotivo(tipo){
   });
 }
 
-
-// 🔴 v15.1 — Alterna comportamento do input livre quando seleciona "OUTRO…"
 function toggleDestinoOutro(){
   var sel = document.getElementById('loteDestinoSelect');
   var inp = document.getElementById('loteMotivoObs');
@@ -1658,7 +1631,7 @@ function enviarEntrada() {
 
   fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
     .then(function (r) { return r.json(); })
-    .then(function (d) { syncDados(); })
+    .then(function (d) { syncDados(true); })
     .catch(function (err) {
       toast('Sincronizando no servidor...');
       if (window.GodModeTracker) {
@@ -1724,7 +1697,7 @@ function stopFotoCamera() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.0 — SAÍDA RÁPIDA (M6)
+// SAÍDA RÁPIDA
 // ══════════════════════════════════════════════════════════════
 function renderSaidaRapidaList(produtos){
   var el = document.getElementById('rapidaList');
@@ -1734,7 +1707,6 @@ function renderSaidaRapidaList(produtos){
     return;
   }
 
-  // Agrupa por nome+marca pra evitar duplicatas
   var grupos = {};
   produtos.forEach(function(p){
     var chave = (p.nome + '_' + p.marca).toUpperCase();
@@ -1778,7 +1750,7 @@ function renderSaidaRapidaList(produtos){
   el.innerHTML = html;
 }
 
-function filtrarSaidaRapida(){
+var filtrarSaidaRapida = debounce(function(){
   if(!dadosEstoque) return;
   var termoEl = document.getElementById('rapidaSearch');
   var termo = termoEl ? termoEl.value.toLowerCase().trim() : '';
@@ -1796,7 +1768,6 @@ function filtrarSaidaRapida(){
            (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
   });
 
-  // 🔴 Se nada encontrado, mostra botão "Cadastrar e dar saída"
   if(filtrados.length === 0){
     var el = document.getElementById('rapidaList');
     if(el){
@@ -1814,7 +1785,7 @@ function filtrarSaidaRapida(){
     if(btnCadastro) btnCadastro.style.display = 'none';
     renderSaidaRapidaList(filtrados);
   }
-}
+}, 200);
 
 function abrirModalCadastroRapido(nomeSugerido){
   var modal = document.getElementById('cadRapidoModal');
@@ -1887,11 +1858,9 @@ function confirmarCadastroRapido(){
   .then(function(r){ return r.json(); })
   .then(function(d){
     if(d.status === 'ok' && d.produto){
-      // Adiciona ao cache local
       if(!dadosEstoque.produtos) dadosEstoque.produtos = [];
       dadosEstoque.produtos.unshift(d.produto);
-      localStorage.setItem('cv_estoque_cache', JSON.stringify(dadosEstoque));
-      // Joga direto no carrinho (vai virar over-stock automaticamente)
+      try { localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify(dadosEstoque)); } catch(e){}
       var item = {
         linha: d.produto.linha,
         nome: d.produto.nome,
@@ -1908,7 +1877,6 @@ function confirmarCadastroRapido(){
       persistirCarrinho();
       adicionarAuditoriaPendente(d.produto.linha, d.produto.nome, qtd, 0);
       fecharCadRapido();
-      // Limpa busca da Saída Rápida
       var rs = document.getElementById('rapidaSearch');
       if(rs) rs.value = '';
       var btnBox = document.getElementById('btnCadastroRapidoBox');
@@ -1917,7 +1885,7 @@ function confirmarCadastroRapido(){
       renderCarrinho();
       switchTab('saida');
       showSuccess('⚡', 'Produto Cadastrado!', nome + ' já está no carrinho.');
-      syncDados();
+      syncDados(true);
     } else {
       toast(d.msg || 'Erro no cadastro');
     }
@@ -1928,7 +1896,6 @@ function confirmarCadastroRapido(){
   });
 }
 
-// 🔴 v15.2 — Exportar lista da Saída Rápida em CSV
 function exportarSaidaRapidaCSV(){
   if(!dadosEstoque || !dadosEstoque.produtos){ toast('Sem dados pra exportar'); return; }
   var termo = (document.getElementById('rapidaSearch')||{value:''}).value.toLowerCase().trim();
@@ -1943,7 +1910,6 @@ function exportarSaidaRapidaCSV(){
   }
   if(produtos.length === 0){ toast('Nenhum produto pra exportar'); return; }
 
-  // Agrupa por nome+marca
   var grupos = {};
   produtos.forEach(function(p){
     var chave = (p.nome+'_'+p.marca).toUpperCase();
@@ -1955,7 +1921,6 @@ function exportarSaidaRapidaCSV(){
   var lista = Object.keys(grupos).map(function(k){ return grupos[k]; });
   lista.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
 
-  // Monta CSV (separador ; pra Excel BR)
   var linhas = ['Produto;Marca;Setor;Quantidade;Unidade;Status;Validade;Lote'];
   lista.forEach(function(g){
     var row = [
@@ -1970,7 +1935,7 @@ function exportarSaidaRapidaCSV(){
     ].join(';');
     linhas.push(row);
   });
-  var csv = '\uFEFF' + linhas.join('\r\n'); // BOM pra Excel abrir UTF-8
+  var csv = '\uFEFF' + linhas.join('\r\n');
 
   var hoje = new Date();
   var dataArq = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
@@ -1986,9 +1951,9 @@ function exportarSaidaRapidaCSV(){
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.5 — OCR DE LISTAS VIA GEMINI (foto → texto)
+// OCR VIA GEMINI
 // ══════════════════════════════════════════════════════════════
-var ocrModoAtual = 'entrega'; // 'entrega' ou 'falta'
+var ocrModoAtual = 'entrega';
 
 function abrirCameraOCR(modo){
   ocrModoAtual = modo || 'entrega';
@@ -2116,7 +2081,7 @@ function enviarParaGemini(base64, mimeType){
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.5 — IMPORTAR LISTA DE FALTAS (texto colado ou via OCR)
+// IMPORTAR LISTA DE FALTAS
 // ══════════════════════════════════════════════════════════════
 function abrirImportarFaltas(textoPre){
   var modal = document.getElementById('importFaltasModal');
@@ -2192,7 +2157,9 @@ function processarFaltasImportadas(){
   showSuccess('❌', 'Faltas Importadas!', adicionados+' iten'+(adicionados>1?'s':'')+' marcado'+(adicionados>1?'s':'')+' como falta');
 }
 
-// 🔴 v15.2 — IMPORTAR LISTA DE SAÍDA (com persistência + placeholder pra não-cadastrados)
+// ══════════════════════════════════════════════════════════════
+// IMPORTAR LISTA DE SAÍDA
+// ══════════════════════════════════════════════════════════════
 function abrirImportarLista(){
   var modal = document.getElementById('importListaModal');
   if(!modal){
@@ -2201,7 +2168,6 @@ function abrirImportarLista(){
     modal.className = 'mini-modal';
     document.body.appendChild(modal);
   }
-  // 🔴 Restaura texto salvo (rascunho)
   var rascunho = '';
   try { rascunho = localStorage.getItem(IMPORT_LISTA_KEY) || ''; } catch(e){}
 
@@ -2234,7 +2200,6 @@ function abrirImportarLista(){
   }, 100);
 }
 
-// 🔴 v15.2 — Salva rascunho a cada digitação
 function salvarRascunhoLista(){
   var ta = document.getElementById('importListaTxt');
   if(!ta) return;
@@ -2245,7 +2210,7 @@ function limparRascunhoLista(){
   var ta = document.getElementById('importListaTxt');
   if(ta) ta.value = '';
   toast('Rascunho limpo');
-  abrirImportarLista(); // recarrega o modal sem o aviso
+  abrirImportarLista();
 }
 
 function fecharImportarLista(){
@@ -2258,7 +2223,6 @@ function processarListaImportada(){
   if(!txt){ toast('Cole a lista primeiro'); return; }
   if(!dadosEstoque || !dadosEstoque.produtos){ toast('Aguarde o carregamento dos produtos'); return; }
 
-  // Salva rascunho
   salvarRascunhoLista();
 
   var linhas = txt.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
@@ -2340,7 +2304,6 @@ function confirmarImportacaoLista(){
   var overStockCount = 0;
   var pendentesCount = 0;
 
-  // Itens existentes no estoque
   todosOk.forEach(function(item){
     var p = item.produto;
     var qtd = item.qtd;
@@ -2377,9 +2340,7 @@ function confirmarImportacaoLista(){
     adicionados++;
   });
 
-  // 🔴 Itens NÃO cadastrados — entram como placeholder
   pendentes.forEach(function(n){
-    // Linha sintética negativa pra não colidir com produtos reais
     var linhaPlaceholder = -(Date.now() + Math.floor(Math.random()*10000));
     carrinhoSaida.push({
       linha: linhaPlaceholder,
@@ -2392,7 +2353,7 @@ function confirmarImportacaoLista(){
       unidade: n.unidade,
       unidadeBase: n.unidade,
       overStock: true,
-      pendenteCadastro: true   // 🔴 flag pra mostrar visualmente
+      pendenteCadastro: true
     });
     adicionarAuditoriaPendente(linhaPlaceholder, n.nome + ' (NÃO CADASTRADO)', n.qtd, 0);
     adicionados++;
@@ -2401,7 +2362,6 @@ function confirmarImportacaoLista(){
 
   persistirCarrinho();
 
-  // Limpa rascunho da lista (já foi processado)
   try { localStorage.removeItem(IMPORT_LISTA_KEY); } catch(e){}
 
   fecharImportarLista();
@@ -2415,9 +2375,8 @@ function confirmarImportacaoLista(){
   window._importListaCache = null;
 }
 
-
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.0 — HISTÓRICO POR MOVIMENTO (M1)
+// HISTÓRICO POR MOVIMENTO
 // ══════════════════════════════════════════════════════════════
 var TIPOS_HISTORICO = [
   { id:'REQUISIÇÃO',     icon:'📦', label:'Requisição',       cor:'var(--blue)' },
@@ -2539,7 +2498,7 @@ function imprimirMovimento(tipoId, idx){
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.0 — PULL-TO-REFRESH (Apple style)
+// PULL-TO-REFRESH
 // ══════════════════════════════════════════════════════════════
 function inicializarPullToRefresh(){
   var indicator = document.getElementById('ptrIndicator');
@@ -2587,7 +2546,7 @@ function inicializarPullToRefresh(){
       indicator.classList.add('ptr-loading');
       indicator.style.transform = 'translateX(-50%) translateY(60px)';
       toast('🔄 Sincronizando…');
-      syncDados();
+      syncDados(true);
       setTimeout(function(){
         resetPtrIndicator();
       }, 1200);
@@ -2612,7 +2571,7 @@ function estaNaTabPainel(){
 }
 
 // ══════════════════════════════════════════════════════════════
-// RELATÓRIO (mantido da v14.0)
+// RELATÓRIO
 // ══════════════════════════════════════════════════════════════
 function toggleRelatorio() {
   if (relatorioAtivo) { fecharRelatorio(); return; }
@@ -2726,31 +2685,61 @@ function escapeHtml(str) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.6 — HISTÓRICO DE COMPROVANTES (últimos 30 dias)
+// COMPROVANTES (cache local + skeleton loader)
 // ══════════════════════════════════════════════════════════════
-ffunction salvarComprovanteServidor(dados){
+function salvarComprovanteServidor(dados){
   var payload = Object.assign({ acao: 'salvarComprovante' }, dados);
   fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload),
     redirect: 'follow'
-  }).catch(function(){ /* segue silencioso */ });
+  }).catch(function(){});
 }
 
 var listaComprovantes = [];
+var COMPROVANTES_CACHE_KEY = 'cv_estoque_comprovantes_cache';
+var COMPROVANTES_CACHE_TIME_KEY = 'cv_estoque_comprovantes_time';
+
 function carregarComprovantes(){
   var el = document.getElementById('comprovantesList');
   if(!el) return;
-  el.innerHTML = '<div class="empty-state"><div class="ptr-spinner" style="margin:0 auto 12px;"></div><div class="empty-text">Carregando...</div></div>';
+
+  // 🚀 v15.7 — Cache instantâneo
+  try {
+    var cached = localStorage.getItem(COMPROVANTES_CACHE_KEY);
+    if(cached){
+      listaComprovantes = JSON.parse(cached);
+      renderComprovantes();
+    } else {
+      // Skeleton loader enquanto carrega
+      var sk = '';
+      for(var i=0; i<3; i++){
+        sk += '<div class="hist-mov-card" style="opacity:0.5;">'+
+          '<div style="height:18px; background:rgba(118,118,128,.2); border-radius:4px; margin-bottom:8px; width:60%;"></div>'+
+          '<div style="height:14px; background:rgba(118,118,128,.15); border-radius:4px; margin-bottom:6px; width:40%;"></div>'+
+          '<div style="height:14px; background:rgba(118,118,128,.15); border-radius:4px; width:80%;"></div>'+
+        '</div>';
+      }
+      el.innerHTML = '<div class="section-label">📜 Carregando comprovantes...</div>' + sk;
+    }
+  } catch(e){}
+
+  // Atualiza em background
   fetch(API_URL + '?comprovantes=1')
     .then(function(r){ return r.json(); })
     .then(function(d){
       listaComprovantes = d.comprovantes || [];
+      try {
+        localStorage.setItem(COMPROVANTES_CACHE_KEY, JSON.stringify(listaComprovantes));
+        localStorage.setItem(COMPROVANTES_CACHE_TIME_KEY, Date.now().toString());
+      } catch(e){}
       renderComprovantes();
     })
     .catch(function(){
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Erro ao carregar. Verifique conexão.</div></div>';
+      if(listaComprovantes.length === 0){
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Erro ao carregar. Verifique conexão.</div></div>';
+      }
     });
 }
 
@@ -2784,7 +2773,6 @@ function reimprimirComprovante(idx){
   if(!c){ toast('Comprovante não encontrado'); return; }
   gerarComprovantePedido(c.itens || [], c.destino, c.setor, c.faltas || []);
 }
-
 
 function gerarComprovantePedido(itens, destino, setor, faltas) {
   faltas = faltas || [];
@@ -2841,53 +2829,42 @@ function gerarComprovantePedido(itens, destino, setor, faltas) {
 
   var overlay = document.getElementById('relatorioOverlay');
   if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
-    overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()" style="background:var(--blue); color:#fff; font-weight:700; font-size:1rem; padding:12px 20px;">🖨️ Imprimir Comprovante</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
+  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()" style="background:var(--blue); color:#fff; font-weight:700; font-size:1rem; padding:12px 20px;">🖨️ Imprimir Comprovante</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
   overlay.classList.add('show'); overlay.scrollTop = 0;
-  // 🔴 v15.4 — Impressão MANUAL: usuário clica no botão acima quando estiver pronto
 }
 
-
-
-
-
 // ══════════════════════════════════════════════════════════════
-// 🔴 v15.3 — SWIPE HORIZONTAL = VOLTAR PRA ABA ANTERIOR
+// SWIPE HORIZONTAL = VOLTAR
 // ══════════════════════════════════════════════════════════════
-var navegacaoHistorico = ['painel']; // pilha de abas visitadas
+var navegacaoHistorico = ['painel'];
 var swipeState = { startX: 0, startY: 0, startT: 0, tracking: false };
 
-// Hook no switchTab original pra registrar o histórico
 var _switchTabOriginal = switchTab;
 switchTab = function(tab){
   var ultimoIdx = navegacaoHistorico.length - 1;
   if(navegacaoHistorico[ultimoIdx] !== tab){
     navegacaoHistorico.push(tab);
-    // limita pilha a 10 itens pra não crescer infinito
     if(navegacaoHistorico.length > 10) navegacaoHistorico.shift();
   }
   _switchTabOriginal(tab);
 };
 
 function voltarAbaAnterior(){
-  // Se tem modal aberto, fecha o modal em vez de voltar
   var modaisAbertos = document.querySelectorAll('.modal-overlay.show, .mini-modal.show, #relatorioOverlay.show');
   if(modaisAbertos.length > 0){
     modaisAbertos.forEach(function(m){ m.classList.remove('show'); });
     return;
   }
-  // Volta uma aba na pilha
   if(navegacaoHistorico.length > 1){
-    navegacaoHistorico.pop(); // remove a atual
+    navegacaoHistorico.pop();
     var anterior = navegacaoHistorico[navegacaoHistorico.length - 1];
     _switchTabOriginal(anterior);
   } else {
-    // Já está no painel — feedback sutil
     _switchTabOriginal('painel');
   }
 }
 
 document.addEventListener('touchstart', function(e){
-  // Ignora se tocou em campo de input/scanner/canvas
   var alvo = e.target;
   if(alvo.closest('input, textarea, select, video, canvas, .mini-modal, .modal-overlay, #readerEntrada, #readerSaida')) return;
   if(e.touches.length !== 1) return;
@@ -2904,48 +2881,41 @@ document.addEventListener('touchend', function(e){
   var dx = t.clientX - swipeState.startX;
   var dy = t.clientY - swipeState.startY;
   var dt = Date.now() - swipeState.startT;
-  // Critérios: swipe rápido (<500ms), horizontal predominante, distância >80px
   if(dt > 500) return;
   if(Math.abs(dx) < 80) return;
-  if(Math.abs(dy) > Math.abs(dx) * 0.7) return; // se foi mais vertical, ignora
-  // Swipe da esquerda pra direita = voltar (estilo iOS)
+  if(Math.abs(dy) > Math.abs(dx) * 0.7) return;
   if(dx > 0 && swipeState.startX < 60){
-    // Edge swipe: começou na borda esquerda
     voltarAbaAnterior();
     if(navigator.vibrate) navigator.vibrate(30);
   } else if(dx > 120){
-    // Swipe horizontal generoso em qualquer parte da tela
     voltarAbaAnterior();
     if(navigator.vibrate) navigator.vibrate(30);
   }
 }, { passive: true });
 
-// 🔴 Bonus: botão "Voltar" do Android também volta de aba em vez de sair
 window.addEventListener('popstate', function(){
   voltarAbaAnterior();
-  history.pushState(null, '', location.href); // re-empilha pra continuar interceptando
+  history.pushState(null, '', location.href);
 });
-// Empilha estado inicial
 if(window.history && window.history.pushState){
   history.pushState(null, '', location.href);
 }
 
-
-// ══════════════ MOTOR DOS BALÕES DE AJUDA ══════════════
+// ══════════════ BALÕES DE AJUDA ══════════════
 document.addEventListener('click', function (e) {
   if (!e.target.classList.contains('help-icon')) {
-    document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove());
-    document.querySelectorAll('.help-icon.active').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.tooltip-balloon').forEach(function(b){ b.remove(); });
+    document.querySelectorAll('.help-icon.active').forEach(function(i){ i.classList.remove('active'); });
     return;
   }
   var icon = e.target;
   if (icon.classList.contains('active')) {
     icon.classList.remove('active');
-    document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove());
+    document.querySelectorAll('.tooltip-balloon').forEach(function(b){ b.remove(); });
     return;
   }
-  document.querySelectorAll('.tooltip-balloon').forEach(b => b.remove());
-  document.querySelectorAll('.help-icon.active').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.tooltip-balloon').forEach(function(b){ b.remove(); });
+  document.querySelectorAll('.help-icon.active').forEach(function(i){ i.classList.remove('active'); });
   icon.classList.add('active');
   var texto = icon.getAttribute('data-tooltip');
   var balloon = document.createElement('div');
@@ -2957,7 +2927,7 @@ document.addEventListener('click', function (e) {
   balloon.style.top = (rect.top - balloon.offsetHeight - 10) + 'px';
 });
 
-// ══════════════ SERVICE WORKER (PWA) ══════════════
+// ══════════════ SERVICE WORKER ══════════════
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
@@ -2968,11 +2938,10 @@ if ('serviceWorker' in navigator) {
 
 // ══════════════ Splash bootstrap ══════════════
 document.body.classList.add('pronto');
-setTimeout(() => {
-  const tampa = document.getElementById('tampa-carregamento');
+setTimeout(function(){
+  var tampa = document.getElementById('tampa-carregamento');
   if (tampa) {
     tampa.style.opacity = '0';
-    setTimeout(() => tampa.remove(), 400);
+    setTimeout(function(){ tampa.remove(); }, 400);
   }
 }, 150);
-
