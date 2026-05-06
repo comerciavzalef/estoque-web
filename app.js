@@ -1648,7 +1648,6 @@ function toggleDestinoVisibilidade(){
   } else if(motivo === 'CONSUMO INTERNO' || motivo === 'CONSUMO'){
     box.style.display = 'block';
     if(setorBox) setorBox.style.display = 'none';
-    // 🚀 v15.8 — Limpa o setor para não enviar lixo no comprovante
     if(setorSelect) setorSelect.value = '';
     popularDestinosPorMotivo('CONSUMO');
   } else {
@@ -1657,6 +1656,7 @@ function toggleDestinoVisibilidade(){
     if(setorSelect) setorSelect.value = '';
   }
 }
+
 
 
 function popularDestinosPorMotivo(tipo){
@@ -2895,28 +2895,28 @@ function gerarComprovantePedido(itens, destino, setor, faltas) {
     html += '<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">';
     html += '<thead><tr style="background:#eee; border-bottom:2px solid #000;"><th style="padding:12px 8px; text-align:left;" colspan="2">Quantidade</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:center;">Conferido</th></tr></thead><tbody>';
 
-        itens.forEach(function (item) {
-      var unMostrar = item.unidadeDigitada || item.unidade || item.unidadeBase || '';
-      var qtdTexto = item.quantidade + ' ' + escapeHtml(unMostrar);
+           itens.forEach(function (item) {
+        var unMostrar = item.unidadeDigitada || item.unidade || item.unidadeBase || '';
+        var qtdTexto = item.quantidade + ' ' + escapeHtml(unMostrar);
 
-      // 🚀 v15.8 — Mostra conversão igual ao carrinho: "2 CX (= 24 UN)"
-      var temConversao = item.unidadeDigitada &&
-                         item.unidadeBase &&
-                         item.unidadeDigitada !== item.unidadeBase &&
-                         item.fator && item.fator !== 1 &&
-                         !item.pendenteCadastro;
+        var temConversao = item.unidadeDigitada &&
+                           item.unidadeBase &&
+                           item.unidadeDigitada !== item.unidadeBase &&
+                           item.fator && item.fator !== 1 &&
+                           !item.pendenteCadastro;
 
-      if(temConversao){
-        qtdTexto = item.quantidade + ' ' + escapeHtml(item.unidadeDigitada) +
-                   ' <span style="font-size:12px; color:#666; font-weight:500;">(= ' +
-                   item.quantidadeBase + ' ' + escapeHtml(item.unidadeBase) + ')</span>';
-      }
+        if(temConversao){
+          qtdTexto = item.quantidade + ' ' + escapeHtml(item.unidadeDigitada) +
+                     ' <span style="font-size:12px; color:#666; font-weight:500;">(= ' +
+                     item.quantidadeBase + ' ' + escapeHtml(item.unidadeBase) + ')</span>';
+        }
 
-      html += '<tr style="border-bottom:1px solid #ddd;">';
-      html += '<td style="padding:12px 8px; font-weight:800; font-size:16px;" colspan="2">' + qtdTexto + '</td>';
-      html += '<td style="padding:12px 8px; font-weight:500;">' + escapeHtml(item.nome) + '</td>';
-      html += '<td style="padding:12px 8px; text-align:center;"><div style="width:20px; height:20px; border:1px solid #999; border-radius:4px; margin:0 auto;"></div></td></tr>';
-    });
+        html += '<tr style="border-bottom:1px solid #ddd;">';
+        html += '<td style="padding:12px 8px; font-weight:800; font-size:16px;" colspan="2">' + qtdTexto + '</td>';
+        html += '<td style="padding:12px 8px; font-weight:500;">' + escapeHtml(item.nome) + '</td>';
+        html += '<td style="padding:12px 8px; text-align:center;"><div style="width:20px; height:20px; border:1px solid #999; border-radius:4px; margin:0 auto;"></div></td></tr>';
+      });
+
     
     html += '</tbody></table>';
   }
