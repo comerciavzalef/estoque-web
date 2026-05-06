@@ -1392,3 +1392,2028 @@ function confirmarSaidaLote() {
       if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar Baixa Total'; }
     });
 }
+
+// ══════════════════════════════════════════════════════════════
+// 🚀 v15.8 — DESTINOS E SETORES (sincronizados via Sheets)
+// ══════════════════════════════════════════════════════════════
+function popularDestinosSelect(){
+  popularSetoresReqSelect();
+  var motivoSel = document.getElementById('loteMotivoSelect');
+  if(motivoSel){
+    if(!motivoSel.dataset.bound){
+      motivoSel.addEventListener('change', toggleDestinoVisibilidade);
+      motivoSel.dataset.bound = '1';
+    }
+    toggleDestinoVisibilidade();
+  }
+  var destSel = document.getElementById('loteDestinoSelect');
+  if(destSel && !destSel.dataset.bound){
+    destSel.addEventListener('change', toggleNovoDestinoBox);
+    destSel.dataset.bound = '1';
+  }
+}
+
+function popularDestinosPorMotivo(tipo){
+  var sel = document.getElementById('loteDestinoSelect');
+  if(!sel) return;
+  var lista = (tipo === 'CONSUMO') ? configRemota.destinosConsumo : configRemota.destinosPedido;
+  var atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione o destino…</option>';
+  (lista||[]).forEach(function(d){
+    var opt = document.createElement('option');
+    opt.value = d; opt.textContent = d;
+    sel.appendChild(opt);
+  });
+  // Opções padrão extras
+  var optOutro = document.createElement('option');
+  optOutro.value = 'OUTRO…'; optOutro.textContent = 'OUTRO… (livre)';
+  sel.appendChild(optOutro);
+
+  var optAdd = document.createElement('option');
+  optAdd.value = '__novo__';
+  optAdd.textContent = '➕ Adicionar novo destino…';
+  sel.appendChild(optAdd);
+
+  var optRemover = document.createElement('option');
+  optRemover.value = '__remover__';
+  optRemover.textContent = '🗑️ Remover um destino…';
+  sel.appendChild(optRemover);
+
+  if(atual && atual !== '__novo__' && atual !== '__remover__'){
+    // Mantém valor anterior se ainda existe na lista
+    var existe = Array.prototype.slice.call(sel.options).some(function(o){ return o.value === atual; });
+    if(existe) sel.value = atual;
+  }
+}
+
+function toggleDestinoVisibilidade(){
+  var motivoSel = document.getElementById('loteMotivoSelect');
+  var box = document.getElementById('destinoBox');
+  var setorBox = document.getElementById('setorBox');
+  var setorSelect = document.getElementById('loteSetorSelect');
+  var obsBox = document.getElementById('observacaoBox');
+  if(!motivoSel || !box) return;
+
+  var motivo = motivoSel.value;
+
+  if(motivo === 'SAÍDA DE PEDIDO'){
+    box.style.display = 'block';
+    if(setorBox) setorBox.style.display = 'block';
+    if(obsBox) obsBox.style.display = 'block';
+    popularDestinosPorMotivo('PEDIDO');
+  } else if(motivo === 'CONSUMO INTERNO' || motivo === 'CONSUMO'){
+    box.style.display = 'block';
+    if(setorBox) setorBox.style.display = 'none';
+    if(setorSelect) setorSelect.value = '';
+    if(obsBox) obsBox.style.display = 'block';
+    popularDestinosPorMotivo('CONSUMO');
+  } else {
+    box.style.display = 'none';
+    if(setorBox) setorBox.style.display = 'none';
+    if(setorSelect) setorSelect.value = '';
+    if(obsBox) obsBox.style.display = 'none';
+  }
+}
+
+function toggleDestinoOutro(){
+  var sel = document.getElementById('loteDestinoSelect');
+  var inp = document.getElementById('loteMotivoObs');
+  if(!sel || !inp) return;
+  var v = sel.value;
+  if(v === 'OUTRO…' || v === 'OUTRO...'){
+    inp.style.display = 'block';
+    inp.placeholder = 'Digite o destino…';
+  } else {
+    inp.style.display = 'none';
+    inp.value = '';
+  }
+}
+
+function toggleNovoDestinoBox(){
+  var sel = document.getElementById('loteDestinoSelect');
+  var inp = document.getElementById('loteDestinoNovo');
+  var btn = document.getElementById('btnConfirmarNovoDestino');
+  if(!sel) return;
+
+  if(sel.value === '__remover__'){
+    abrirModalRemoverDestino();
+    sel.value = '';
+    if(inp) inp.style.display = 'none';
+    if(btn) btn.style.display = 'none';
+    toggleDestinoOutro();
+    return;
+  }
+
+  if(!inp || !btn){ toggleDestinoOutro(); return; }
+
+  if(sel.value === '__novo__'){
+    inp.style.display = 'block';
+    btn.style.display = 'block';
+    inp.value = '';
+    var inpLivre = document.getElementById('loteMotivoObs');
+    if(inpLivre){ inpLivre.style.display = 'none'; inpLivre.value=''; }
+  } else {
+    inp.style.display = 'none';
+    btn.style.display = 'none';
+    toggleDestinoOutro();
+  }
+}
+
+function confirmarNovoDestino(){
+  var inp = document.getElementById('loteDestinoNovo');
+  var sel = document.getElementById('loteDestinoSelect');
+  var motivoSel = document.getElementById('loteMotivoSelect');
+  if(!inp || !sel) return;
+  var nome = (inp.value||'').trim().toUpperCase();
+  if(!nome){ toast('Digite o nome do destino.'); return; }
+  if(nome.length < 2){ toast('Nome muito curto.'); return; }
+
+  var tipo = (motivoSel && (motivoSel.value === 'CONSUMO INTERNO' || motivoSel.value === 'CONSUMO'))
+    ? 'DESTINO_CONSUMO' : 'DESTINO_PEDIDO';
+
+  var btn = document.getElementById('btnConfirmarNovoDestino');
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+  adicionarItemConfig(tipo, nome).then(function(d){
+    if(d && d.status === 'ok'){
+      // Atualiza local
+      if(tipo === 'DESTINO_CONSUMO'){
+        if(configRemota.destinosConsumo.indexOf(nome) === -1) configRemota.destinosConsumo.push(nome);
+      } else {
+        if(configRemota.destinosPedido.indexOf(nome) === -1) configRemota.destinosPedido.push(nome);
+      }
+      try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(configRemota)); } catch(e){}
+      popularDestinosPorMotivo(tipo === 'DESTINO_CONSUMO' ? 'CONSUMO' : 'PEDIDO');
+      sel.value = nome;
+      inp.style.display = 'none';
+      if(btn){ btn.style.display = 'none'; btn.disabled = false; btn.textContent = '✅ Adicionar destino'; }
+      toast('✅ Destino "' + nome + '" adicionado.');
+    } else {
+      toast(d && d.msg ? d.msg : 'Erro ao adicionar destino');
+      if(btn){ btn.disabled = false; btn.textContent = '✅ Adicionar destino'; }
+    }
+  }).catch(function(){
+    toast('Sem conexão. Tente novamente.');
+    if(btn){ btn.disabled = false; btn.textContent = '✅ Adicionar destino'; }
+  });
+}
+
+function abrirModalRemoverDestino(){
+  var motivoSel = document.getElementById('loteMotivoSelect');
+  var tipoConsumo = motivoSel && (motivoSel.value === 'CONSUMO INTERNO' || motivoSel.value === 'CONSUMO');
+  var lista = tipoConsumo ? configRemota.destinosConsumo : configRemota.destinosPedido;
+  var tipoLabel = tipoConsumo ? 'consumo' : 'pedido';
+  var tipoConfig = tipoConsumo ? 'DESTINO_CONSUMO' : 'DESTINO_PEDIDO';
+
+  if(!lista || lista.length === 0){
+    toast('Não há destinos cadastrados para remover.');
+    return;
+  }
+
+  var modal = document.getElementById('removerDestinoModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'removerDestinoModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+
+  var listaHtml = '';
+  lista.forEach(function(s){
+    var safe = s.replace(/'/g,"\\'");
+    listaHtml += '<div onclick="confirmarRemoverDestino(\''+safe+'\',\''+tipoConfig+'\')" '+
+      'style="display:flex; justify-content:space-between; align-items:center; '+
+      'padding:14px 16px; margin-bottom:8px; background:rgba(255,69,58,0.08); '+
+      'border:1px solid rgba(255,69,58,0.3); border-radius:10px; cursor:pointer;">'+
+      '<span style="font-weight:600; color:var(--text-primary);">'+escapeHtml(s)+'</span>'+
+      '<span style="color:var(--red); font-size:1.2rem;">🗑️</span>'+
+    '</div>';
+  });
+
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharRemoverDestino()"></div>'+
+    '<div class="mm-card">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">🗑️ Remover Destino ('+tipoLabel+')</div>'+
+        '<div class="mm-sub">Toque no destino que deseja remover. A remoção é sincronizada para todos os usuários.</div>'+
+      '</div>'+
+      '<div class="mm-body">'+listaHtml+'</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharRemoverDestino()">Fechar</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+function fecharRemoverDestino(){
+  var modal = document.getElementById('removerDestinoModal');
+  if(modal) modal.classList.remove('show');
+}
+function confirmarRemoverDestino(nome, tipoConfig){
+  if(!confirm('Tem certeza que deseja remover o destino "'+nome+'"?\n\nA remoção é sincronizada para todos os usuários.')) return;
+  removerItemConfig(tipoConfig, nome).then(function(d){
+    if(d && d.status === 'ok'){
+      if(tipoConfig === 'DESTINO_CONSUMO'){
+        configRemota.destinosConsumo = configRemota.destinosConsumo.filter(function(x){ return x !== nome; });
+      } else {
+        configRemota.destinosPedido = configRemota.destinosPedido.filter(function(x){ return x !== nome; });
+      }
+      try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(configRemota)); } catch(e){}
+      fecharRemoverDestino();
+      var motivoSel = document.getElementById('loteMotivoSelect');
+      var tipo = (motivoSel && (motivoSel.value === 'CONSUMO INTERNO' || motivoSel.value === 'CONSUMO')) ? 'CONSUMO' : 'PEDIDO';
+      popularDestinosPorMotivo(tipo);
+      toast('🗑️ Destino "'+nome+'" removido');
+    } else {
+      toast(d && d.msg ? d.msg : 'Erro ao remover');
+    }
+  }).catch(function(){ toast('Sem conexão'); });
+}
+
+// Setores (sincronizados)
+function popularSetoresReqSelect(){
+  var sel = document.getElementById('loteSetorSelect');
+  if(!sel) return;
+  var atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione o setor…</option>';
+  (configRemota.setores||[]).forEach(function(s){
+    var opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  var optAdd = document.createElement('option');
+  optAdd.value = '__novo__';
+  optAdd.textContent = '➕ Adicionar novo setor…';
+  sel.appendChild(optAdd);
+  var optRemover = document.createElement('option');
+  optRemover.value = '__remover__';
+  optRemover.textContent = '🗑️ Remover um setor…';
+  sel.appendChild(optRemover);
+
+  if(atual && atual !== '__novo__' && atual !== '__remover__'){
+    var existe = Array.prototype.slice.call(sel.options).some(function(o){ return o.value === atual; });
+    if(existe) sel.value = atual;
+  }
+
+  if(!sel.dataset.bound){
+    sel.addEventListener('change', toggleNovoSetorBox);
+    sel.dataset.bound = '1';
+  }
+}
+
+function toggleNovoSetorBox(){
+  var sel = document.getElementById('loteSetorSelect');
+  var inp = document.getElementById('loteSetorNovo');
+  var btn = document.getElementById('btnConfirmarNovoSetor');
+  if(!sel) return;
+
+  if(sel.value === '__remover__'){
+    abrirModalRemoverSetor();
+    sel.value = '';
+    return;
+  }
+
+  if(!inp || !btn) return;
+  if(sel.value === '__novo__'){
+    inp.style.display = 'block';
+    btn.style.display = 'block';
+    inp.value = '';
+  } else {
+    inp.style.display = 'none';
+    btn.style.display = 'none';
+  }
+}
+
+function confirmarNovoSetor(){
+  var inp = document.getElementById('loteSetorNovo');
+  var sel = document.getElementById('loteSetorSelect');
+  if(!inp || !sel) return;
+  var nome = (inp.value||'').trim().toUpperCase();
+  if(!nome){ toast('Digite o nome do setor.'); return; }
+  if(nome.length < 2){ toast('Nome muito curto.'); return; }
+
+  var btn = document.getElementById('btnConfirmarNovoSetor');
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+  adicionarItemConfig('SETOR', nome).then(function(d){
+    if(d && d.status === 'ok'){
+      if(configRemota.setores.indexOf(nome) === -1) configRemota.setores.push(nome);
+      try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(configRemota)); } catch(e){}
+      popularSetoresReqSelect();
+      sel.value = nome;
+      inp.style.display = 'none';
+      if(btn){ btn.style.display = 'none'; btn.disabled = false; btn.textContent = '✅ Adicionar setor'; }
+      toast('✅ Setor "' + nome + '" adicionado.');
+    } else {
+      toast(d && d.msg ? d.msg : 'Erro ao adicionar setor');
+      if(btn){ btn.disabled = false; btn.textContent = '✅ Adicionar setor'; }
+    }
+  }).catch(function(){
+    toast('Sem conexão. Tente novamente.');
+    if(btn){ btn.disabled = false; btn.textContent = '✅ Adicionar setor'; }
+  });
+}
+
+function abrirModalRemoverSetor(){
+  var lista = configRemota.setores || [];
+  if(lista.length === 0){
+    toast('Não há setores cadastrados para remover.');
+    return;
+  }
+
+  var modal = document.getElementById('removerSetorModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'removerSetorModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+
+  var listaHtml = '';
+  lista.forEach(function(s){
+    var safe = s.replace(/'/g,"\\'");
+    listaHtml += '<div onclick="confirmarRemoverSetor(\''+safe+'\')" '+
+      'style="display:flex; justify-content:space-between; align-items:center; '+
+      'padding:14px 16px; margin-bottom:8px; background:rgba(255,69,58,0.08); '+
+      'border:1px solid rgba(255,69,58,0.3); border-radius:10px; cursor:pointer;">'+
+      '<span style="font-weight:600; color:var(--text-primary);">'+escapeHtml(s)+'</span>'+
+      '<span style="color:var(--red); font-size:1.2rem;">🗑️</span>'+
+    '</div>';
+  });
+
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharRemoverSetor()"></div>'+
+    '<div class="mm-card">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">🗑️ Remover Setor</div>'+
+        '<div class="mm-sub">Toque no setor que deseja remover. A remoção é sincronizada para todos.</div>'+
+      '</div>'+
+      '<div class="mm-body">'+listaHtml+'</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharRemoverSetor()">Fechar</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+function fecharRemoverSetor(){
+  var modal = document.getElementById('removerSetorModal');
+  if(modal) modal.classList.remove('show');
+}
+function confirmarRemoverSetor(nome){
+  if(!confirm('Tem certeza que deseja remover o setor "'+nome+'"?\n\nA remoção é sincronizada para todos os usuários.')) return;
+  removerItemConfig('SETOR', nome).then(function(d){
+    if(d && d.status === 'ok'){
+      configRemota.setores = configRemota.setores.filter(function(x){ return x !== nome; });
+      try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(configRemota)); } catch(e){}
+      fecharRemoverSetor();
+      popularSetoresReqSelect();
+      toast('🗑️ Setor "'+nome+'" removido');
+    } else {
+      toast(d && d.msg ? d.msg : 'Erro ao remover');
+    }
+  }).catch(function(){ toast('Sem conexão'); });
+}
+
+// ══════════════════════════════════════════════════════════════
+// AUDITORIA
+// ══════════════════════════════════════════════════════════════
+function renderAuditoriaList(produtos) {
+  var el = document.getElementById('auditoriaList');
+  if (!produtos || produtos.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🕵️</div><div class="empty-text">Nenhum produto disponível</div></div>';
+    return;
+  }
+  var grupos = {};
+  produtos.forEach(function (p) {
+    var chave = (p.nome + '_' + p.marca).toUpperCase();
+    if (!grupos[chave]) {
+      grupos[chave] = { nome: p.nome, marca: p.marca, setor: p.setor, linhas: [], status:p.status, quantidadeTotal:0 };
+    }
+    grupos[chave].linhas.push(p.linha);
+    grupos[chave].quantidadeTotal += parseFloat(p.quantidade)||0;
+    if(statusPrioridade(p.status, p.quantidade) < statusPrioridade(grupos[chave].status, grupos[chave].quantidadeTotal)){
+      grupos[chave].status = p.status;
+    }
+  });
+  var arr = Object.keys(grupos).map(function(k){ return grupos[k]; });
+  arr.sort(function(a,b){
+    var pa = statusPrioridade(a.status, a.quantidadeTotal);
+    var pb = statusPrioridade(b.status, b.quantidadeTotal);
+    if(pa !== pb) return pa - pb;
+    return a.nome.localeCompare(b.nome,'pt-BR');
+  });
+  var html = '';
+  arr.forEach(function (g) {
+    var linhaPrincipal = g.linhas[0];
+    var pendFlag = auditoriasPendentes.find(function(a){ return a.linha === linhaPrincipal; });
+    var tag = pendFlag ? '<span class="aud-pendente-tag">⚠️ PENDENTE</span>' : '';
+    html += '<div class="saida-card" onclick="abrirAuditoriaModal(' + linhaPrincipal + ')"><div class="saida-icon" style="background:var(--purple); color:#fff;">🕵️</div><div class="saida-info"><div class="saida-nome">' + escapeHtml(g.nome) + ' '+tag+'</div><div class="saida-meta">' + escapeHtml(g.marca) + ' • ' + escapeHtml(g.setor) + '</div></div><button class="saida-btn" style="background:var(--purple-soft); color:var(--purple);">Auditar</button></div>';
+  });
+  el.innerHTML = html;
+}
+
+var filtrarAuditoria = debounce(function() {
+  if (!dadosEstoque) return;
+  var termo = document.getElementById('auditoriaSearch').value.toLowerCase().trim();
+  if (!termo) { renderAuditoriaList(dadosEstoque.produtos); return; }
+  var filtrados = dadosEstoque.produtos.filter(function (p) {
+    return p.nome.toLowerCase().indexOf(termo) > -1 ||
+      p.marca.toLowerCase().indexOf(termo) > -1 ||
+      p.setor.toLowerCase().indexOf(termo) > -1 ||
+      (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
+  });
+  renderAuditoriaList(filtrados);
+}, 200);
+
+function abrirAuditoriaModal(linha) {
+  if (!dadosEstoque) return;
+  var p = dadosEstoque.produtos.find(function (x) { return x.linha === linha; });
+  if (!p) return;
+  document.getElementById('auditoriaProdNome').textContent = p.nome;
+  document.getElementById('auditoriaProdSetor').textContent = p.marca + ' • ' + p.setor + ' • Sistema: ' + p.quantidade + ' ' + p.unidade;
+  document.getElementById('auditoriaProdLinha').value = linha;
+  document.getElementById('auditoriaQtdFisica').value = '';
+  document.getElementById('auditoriaModal').classList.add('show');
+}
+function fecharAuditoria() { document.getElementById('auditoriaModal').classList.remove('show'); }
+
+function enviarAuditoria() {
+  var btn = document.getElementById('btnSalvarAuditoria');
+  var qtdStr = document.getElementById('auditoriaQtdFisica').value;
+  if (qtdStr === '') { toast('Informe a quantidade'); return; }
+  var qtd = parseFloat(qtdStr);
+  var linha = parseInt(document.getElementById('auditoriaProdLinha').value);
+  btn.disabled = true; btn.textContent = 'Verificando...';
+
+  fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'auditoria', linha: linha, qtdFisica: qtd, nome: sessao.nome }), redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.status === 'ok') {
+        fecharAuditoria();
+        if (d.match) {
+          removerAuditoriaPendente(linha);
+          showSuccess('✅', 'Tudo Certo!', d.msg);
+        } else {
+          var resp = confirm('⚠️ Divergência Detectada!\n\nA prateleira tem ' + qtd + ' itens, mas o sistema esperava ' + (qtd - d.diferenca) + '.\n\nDeseja que o App AJUSTE O SALDO da planilha agora?');
+          if (resp) {
+            var prod = dadosEstoque.produtos.find(function (x) { return x.linha === linha; });
+            if (prod) prod.quantidade = qtd;
+            renderPainel(dadosEstoque);
+            removerAuditoriaPendente(linha);
+            showSuccess('🔄', 'Estoque Ajustado!', 'O saldo corrigido para ' + qtd + '.');
+            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'ajusteAuditoria', linha: linha, quantidade: qtd, nome: sessao.nome, motivo:'Auditoria' }), redirect: 'follow' }).then(function(){ syncDados(true); });
+          } else {
+            removerAuditoriaPendente(linha);
+            showSuccess('⚠️', 'Apenas Registrado', 'A diferença foi enviada ao Gestor.');
+          }
+        }
+      } else { toast(d.msg || 'Erro'); }
+    })
+    .catch(function () { toast('Sem conexão'); })
+    .finally(function () { btn.disabled = false; btn.textContent = 'Verificar Divergência'; });
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🚀 v15.8 — IMPORTAÇÃO DE NFe VIA XML
+// ══════════════════════════════════════════════════════════════
+function abrirImportarNFe(){
+  nfeImportData = null;
+  var modal = document.getElementById('nfeModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'nfeModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharImportarNFe()"></div>'+
+    '<div class="mm-card" style="max-width:640px;">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">📄 Importar Nota Fiscal (XML)</div>'+
+        '<div class="mm-sub">Selecione o arquivo XML enviado pelo fornecedor</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<input type="file" id="nfeFileInput" accept=".xml,text/xml,application/xml" style="display:none;" onchange="processarXMLNFe(event)">'+
+        '<button class="cam-btn" onclick="document.getElementById(\'nfeFileInput\').click()" style="width:100%; background:var(--blue); color:#fff; font-weight:700; padding:18px; font-size:1rem;">📁 Escolher arquivo XML</button>'+
+        '<p style="color:var(--text-tertiary); font-size:0.7rem; text-align:center; margin-top:10px;">A leitura é feita 100% no seu dispositivo. Nada é enviado pra internet até você confirmar.</p>'+
+        '<div id="nfePreview" style="margin-top:14px;"></div>'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharImportarNFe()">Fechar</button>'+
+        '<button class="mm-btn mm-confirm" id="btnConfirmarNFe" onclick="confirmarImportacaoNFe()" style="background:var(--green); display:none;">✅ Confirmar Importação</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+function fecharImportarNFe(){
+  var modal = document.getElementById('nfeModal');
+  if(modal) modal.classList.remove('show');
+  nfeImportData = null;
+}
+
+function processarXMLNFe(event){
+  var file = event.target.files[0];
+  if(!file){ return; }
+  var preview = document.getElementById('nfePreview');
+  preview.innerHTML = '<div style="text-align:center; padding:20px;"><div class="ptr-spinner" style="margin:0 auto 8px;"></div>Lendo XML...</div>';
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      var parser = new DOMParser();
+      var xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+      var erro = xmlDoc.getElementsByTagName('parsererror');
+      if(erro.length > 0){
+        preview.innerHTML = '<div style="color:var(--red); padding:14px; text-align:center;">❌ Arquivo XML inválido</div>';
+        return;
+      }
+      var dados = extrairDadosNFe(xmlDoc);
+      if(!dados || !dados.itens || dados.itens.length === 0){
+        preview.innerHTML = '<div style="color:var(--red); padding:14px; text-align:center;">❌ Nenhum item encontrado no XML.<br><small>Verifique se é um XML de NFe (modelo 55).</small></div>';
+        return;
+      }
+      nfeImportData = dados;
+      renderPreviewNFe(dados);
+      var btn = document.getElementById('btnConfirmarNFe');
+      if(btn) btn.style.display = '';
+    } catch(err){
+      preview.innerHTML = '<div style="color:var(--red); padding:14px; text-align:center;">❌ Erro ao ler XML: '+escapeHtml(err.message||'')+'</div>';
+    }
+  };
+  reader.onerror = function(){
+    preview.innerHTML = '<div style="color:var(--red); padding:14px; text-align:center;">❌ Erro ao abrir o arquivo</div>';
+  };
+  reader.readAsText(file);
+}
+
+function getTextoTag(parent, tag){
+  if(!parent) return '';
+  var els = parent.getElementsByTagName(tag);
+  if(els.length === 0) return '';
+  return (els[0].textContent || '').trim();
+}
+
+function normalizarUnidadeNFe(u){
+  if(!u) return 'UN';
+  var up = u.toString().toUpperCase().trim();
+  var mapa = {
+    'UN':'UN','UND':'UN','UNID':'UN','PC':'UN','PÇ':'UN','PEÇA':'UN',
+    'KG':'KG','KILO':'KG','QUILO':'KG',
+    'L':'L','LT':'L','LITRO':'L',
+    'CX':'CX','CAIXA':'CX',
+    'PCT':'PCT','PCTE':'PCT','PACOTE':'PCT',
+    'FD':'FD','FARDO':'FARDO','FRD':'FARDO',
+    'RL':'RL','ROLO':'RL',
+    'GL':'GL','GLN':'GL','GALAO':'GL','GALÃO':'GL'
+  };
+  return mapa[up] || (UNIDADES_DISPONIVEIS.indexOf(up) >= 0 ? up : 'UN');
+}
+
+function extrairDadosNFe(xmlDoc){
+  // Emitente
+  var emit = xmlDoc.getElementsByTagName('emit')[0];
+  var fornecedor = '';
+  var cnpj = '';
+  if(emit){
+    fornecedor = getTextoTag(emit,'xNome') || getTextoTag(emit,'xFant') || '';
+    cnpj = getTextoTag(emit,'CNPJ') || '';
+  }
+  // Identificação
+  var ide = xmlDoc.getElementsByTagName('ide')[0];
+  var numeroNota = ide ? getTextoTag(ide,'nNF') : '';
+  var dataEmissao = ide ? (getTextoTag(ide,'dhEmi') || getTextoTag(ide,'dEmi')) : '';
+  // Chave de acesso
+  var chave = '';
+  var infNFe = xmlDoc.getElementsByTagName('infNFe')[0];
+  if(infNFe){
+    var idAttr = infNFe.getAttribute('Id') || '';
+    chave = idAttr.replace(/^NFe/i,'').trim();
+  }
+
+  // Itens (det)
+  var itensXml = xmlDoc.getElementsByTagName('det');
+  var itens = [];
+  for(var i=0; i<itensXml.length; i++){
+    var det = itensXml[i];
+    var prod = det.getElementsByTagName('prod')[0];
+    if(!prod) continue;
+
+    var nome = getTextoTag(prod,'xProd');
+    var cProd = getTextoTag(prod,'cProd');
+    var cEAN = getTextoTag(prod,'cEAN');
+    if(cEAN === 'SEM GTIN') cEAN = '';
+    var cEANTrib = getTextoTag(prod,'cEANTrib');
+    if(cEANTrib === 'SEM GTIN') cEANTrib = '';
+    var ncm = getTextoTag(prod,'NCM');
+    var qComStr = getTextoTag(prod,'qCom');
+    var uCom = getTextoTag(prod,'uCom');
+    var vUn = getTextoTag(prod,'vUnCom');
+    var vTotal = getTextoTag(prod,'vProd');
+
+    var qtd = parseFloat(qComStr.replace(',','.')) || 0;
+    if(!nome || qtd <= 0) continue;
+
+    // Lote / Validade (rastro)
+    var lote = '';
+    var validade = '';
+    var rastro = prod.getElementsByTagName('rastro')[0];
+    if(rastro){
+      lote = getTextoTag(rastro,'nLote');
+      validade = getTextoTag(rastro,'dVal');
+    }
+
+    var codBarras = cEAN || cEANTrib || '';
+
+    // Verifica se já existe no estoque
+    var jaCadastrado = false;
+    var linhaExistente = null;
+    var estoqueAtual = 0;
+    if(dadosEstoque && dadosEstoque.produtos){
+      var match = null;
+      if(codBarras){
+        match = dadosEstoque.produtos.find(function(p){ return p.codigoBarras && p.codigoBarras === codBarras; });
+      }
+      if(!match){
+        var nomeUp = nome.toUpperCase().trim();
+        match = dadosEstoque.produtos.find(function(p){ return (p.nome||'').toUpperCase().trim() === nomeUp; });
+      }
+      if(match){
+        jaCadastrado = true;
+        linhaExistente = match.linha;
+        estoqueAtual = match.quantidade;
+      }
+    }
+
+    itens.push({
+      produto: nome,
+      codigoBarras: codBarras,
+      cProd: cProd,
+      ncm: ncm,
+      quantidade: qtd,
+      unidade: normalizarUnidadeNFe(uCom),
+      unidadeOriginal: uCom,
+      valorUnit: parseFloat((vUn||'0').replace(',','.')) || 0,
+      valorTotal: parseFloat((vTotal||'0').replace(',','.')) || 0,
+      lote: lote,
+      validade: validade,
+      jaCadastrado: jaCadastrado,
+      linhaExistente: linhaExistente,
+      estoqueAtual: estoqueAtual,
+      importar: true // por padrão, importa
+    });
+  }
+
+  return {
+    fornecedor: fornecedor,
+    cnpj: cnpj,
+    numeroNota: numeroNota,
+    dataEmissao: dataEmissao,
+    chave: chave,
+    itens: itens
+  };
+}
+
+function formatarCNPJ(c){
+  if(!c) return '';
+  var d = c.replace(/\D/g,'');
+  if(d.length !== 14) return c;
+  return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');
+}
+
+function renderPreviewNFe(d){
+  var preview = document.getElementById('nfePreview');
+  var totalNovos = d.itens.filter(function(i){ return !i.jaCadastrado; }).length;
+  var totalExist = d.itens.length - totalNovos;
+
+  var dataFmt = '';
+  if(d.dataEmissao){
+    var t = d.dataEmissao.split('T')[0];
+    if(t.indexOf('-') >= 0){
+      var p = t.split('-');
+      dataFmt = p[2]+'/'+p[1]+'/'+p[0];
+    } else { dataFmt = d.dataEmissao; }
+  }
+
+  var html = '<div style="border-top:.5px solid var(--border); padding-top:14px;">';
+  html += '<div style="background:rgba(10,132,255,0.08); border:1px solid rgba(10,132,255,0.25); border-radius:10px; padding:12px; margin-bottom:14px;">';
+  html += '<div style="font-size:0.7rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px;">Fornecedor</div>';
+  html += '<div style="font-weight:700; color:var(--text-primary); margin-top:2px;">'+escapeHtml(d.fornecedor || '—')+'</div>';
+  if(d.cnpj) html += '<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">CNPJ: '+escapeHtml(formatarCNPJ(d.cnpj))+'</div>';
+  html += '<div style="display:flex; gap:14px; margin-top:8px; font-size:0.75rem; color:var(--text-secondary);">';
+  if(d.numeroNota) html += '<div>📄 NFe: <b>'+escapeHtml(d.numeroNota)+'</b></div>';
+  if(dataFmt) html += '<div>📅 '+escapeHtml(dataFmt)+'</div>';
+  html += '</div></div>';
+
+  html += '<div style="display:flex; gap:8px; margin-bottom:12px;">';
+  html += '<div style="flex:1; background:rgba(48,209,88,0.1); border:1px solid rgba(48,209,88,0.3); border-radius:8px; padding:10px; text-align:center;"><div style="font-size:1.5rem; font-weight:800; color:var(--green);">'+totalNovos+'</div><div style="font-size:0.7rem; color:var(--text-secondary);">Novos</div></div>';
+  html += '<div style="flex:1; background:rgba(10,132,255,0.1); border:1px solid rgba(10,132,255,0.3); border-radius:8px; padding:10px; text-align:center;"><div style="font-size:1.5rem; font-weight:800; color:var(--blue);">'+totalExist+'</div><div style="font-size:0.7rem; color:var(--text-secondary);">Já existem (vai somar)</div></div>';
+  html += '</div>';
+
+  html += '<div style="font-size:0.7rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Itens da Nota ('+d.itens.length+')</div>';
+
+  d.itens.forEach(function(it, idx){
+    var tag, tagCor;
+    if(it.jaCadastrado){
+      tag = '🔵 EXISTE • ' + it.estoqueAtual + ' → ' + (it.estoqueAtual + it.quantidade);
+      tagCor = 'var(--blue)';
+    } else {
+      tag = '🟢 NOVO';
+      tagCor = 'var(--green)';
+    }
+    html += '<div style="background:rgba(118,118,128,.1); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">';
+    html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">';
+    html += '<div style="flex:1; min-width:0;">';
+    html += '<div style="font-weight:700; color:var(--text-primary); font-size:0.85rem;">'+escapeHtml(it.produto)+'</div>';
+    html += '<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">'+it.quantidade+' '+escapeHtml(it.unidade);
+    if(it.codigoBarras) html += ' • EAN: '+escapeHtml(it.codigoBarras);
+    if(it.lote) html += ' • Lote: '+escapeHtml(it.lote);
+    html += '</div>';
+    html += '</div>';
+    html += '<span style="background:'+tagCor+'; color:#fff; font-size:0.65rem; font-weight:700; padding:3px 8px; border-radius:6px; white-space:nowrap;">'+tag+'</span>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  preview.innerHTML = html;
+}
+
+function confirmarImportacaoNFe(){
+  if(!nfeImportData || !nfeImportData.itens || nfeImportData.itens.length === 0){
+    toast('Nenhum item pra importar');
+    return;
+  }
+  var btn = document.getElementById('btnConfirmarNFe');
+  if(btn){ btn.disabled = true; btn.textContent = 'Importando...'; }
+
+  var payload = {
+    acao: 'entradaLote',
+    colaborador: sessao.nome,
+    nome: sessao.nome,
+    fornecedor: nfeImportData.fornecedor,
+    cnpj: nfeImportData.cnpj,
+    numeroNota: nfeImportData.numeroNota,
+    chave: nfeImportData.chave,
+    dataEmissao: nfeImportData.dataEmissao,
+    itens: nfeImportData.itens
+  };
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+    redirect: 'follow'
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d && d.status === 'ok'){
+      fecharImportarNFe();
+      var detalhe = (d.novos||0) + ' novos • ' + (d.atualizados||0) + ' atualizados';
+      showSuccess('📄', 'NFe importada!', detalhe);
+      syncDados(true);
+    } else {
+      toast(d && d.msg ? d.msg : 'Erro ao importar NFe');
+      if(btn){ btn.disabled = false; btn.textContent = '✅ Confirmar Importação'; }
+    }
+  })
+  .catch(function(){
+    toast('Sem conexão. Tente novamente.');
+    if(btn){ btn.disabled = false; btn.textContent = '✅ Confirmar Importação'; }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// ENTRADA NORMAL (manual)
+// ══════════════════════════════════════════════════════════════
+function enviarEntrada() {
+  var produto = document.getElementById('entProduto').value.trim();
+  var qtd = document.getElementById('entQtd').value;
+  if (!produto) { toast('Informe o nome do produto'); return; }
+  if (!qtd || parseFloat(qtd) <= 0) { toast('Informe a quantidade'); return; }
+  var btn = document.getElementById('btnEntrada');
+  btn.disabled = true; btn.textContent = 'Registando...';
+
+  var payload = {
+    acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome,
+    setor: document.getElementById('entSetor').value, produto: produto,
+    marca: document.getElementById('entMarca').value.trim(),
+    quantidade: qtd, unidade: document.getElementById('entUnidade').value,
+    validade: document.getElementById('entValidade').value,
+    lote: document.getElementById('entLote').value.trim(),
+    observacoes: document.getElementById('entObs').value.trim(),
+    codigoBarras: document.getElementById('entCodigoBarras').value.trim(),
+    foto: fotoData
+  };
+
+  if (!dadosEstoque.produtos) dadosEstoque.produtos = [];
+  dadosEstoque.produtos.unshift({
+    linha: Date.now(),
+    nome: produto, marca: payload.marca, setor: payload.setor,
+    quantidade: parseFloat(qtd), unidade: payload.unidade,
+    status: 'OK', validade: payload.validade, lote: payload.lote, codigoBarras: payload.codigoBarras,
+    fatoresConversao: {}
+  });
+  dadosEstoque = limparDuplicatasZeradas(dadosEstoque);
+  renderPainel(dadosEstoque);
+
+  showSuccess('📦', 'Produto Registrado!', produto + ' adicionado.');
+  limparFormEntrada();
+  switchTab('painel');
+
+  fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload), redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { syncDados(true); })
+    .catch(function (err) { toast('Sincronizando no servidor...'); })
+    .finally(function () { btn.disabled = false; btn.textContent = 'Salvar Entrada'; });
+}
+
+function limparFormEntrada() {
+  document.getElementById('entCodigoBarras').value = '';
+  document.getElementById('entSetor').value = '';
+  document.getElementById('entProduto').value = '';
+  document.getElementById('entMarca').value = '';
+  document.getElementById('entQtd').value = '';
+  document.getElementById('entUnidade').value = 'UN';
+  document.getElementById('entValidade').value = '';
+  document.getElementById('entLote').value = '';
+  document.getElementById('entObs').value = '';
+  resetarFoto();
+  document.getElementById('areaCameraEntrada').style.display = 'none';
+  document.getElementById('btnRevelarCamera').style.display = 'flex';
+}
+function mostrarCameraEntrada() {
+  document.getElementById('btnRevelarCamera').style.display = 'none';
+  document.getElementById('areaCameraEntrada').style.display = 'block';
+  initFotoCamera();
+}
+function initFotoCamera() {
+  if (fotoStream) return;
+  var video = document.getElementById('fotoVideo');
+  if (!video) return;
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 480, height: 480 } })
+    .then(function (s) { fotoStream = s; video.srcObject = s; })
+    .catch(function () { });
+}
+function capturarFoto() {
+  var v = document.getElementById('fotoVideo');
+  var c = document.getElementById('fotoCanvas');
+  c.width = 480; c.height = 480;
+  c.getContext('2d').drawImage(v, 0, 0, 480, 480);
+  fotoData = c.toDataURL('image/jpeg', 0.5);
+  v.style.display = 'none'; c.style.display = 'block';
+  document.getElementById('btnFotoCapture').style.display = 'none';
+  document.getElementById('btnFotoReset').style.display = '';
+  document.getElementById('fotoOk').style.display = 'block';
+}
+function resetarFoto() {
+  var v = document.getElementById('fotoVideo');
+  var c = document.getElementById('fotoCanvas');
+  if (v) v.style.display = 'block';
+  if (c) c.style.display = 'none';
+  var btnCap = document.getElementById('btnFotoCapture');
+  var btnRst = document.getElementById('btnFotoReset');
+  var okEl = document.getElementById('fotoOk');
+  if (btnCap) btnCap.style.display = '';
+  if (btnRst) btnRst.style.display = 'none';
+  if (okEl) okEl.style.display = 'none';
+  fotoData = '';
+}
+function stopFotoCamera() {
+  if (fotoStream) { fotoStream.getTracks().forEach(function (t) { t.stop(); }); fotoStream = null; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// SAÍDA RÁPIDA
+// ══════════════════════════════════════════════════════════════
+function renderSaidaRapidaList(produtos){
+  var el = document.getElementById('rapidaList');
+  if(!el) return;
+  if(!produtos || produtos.length === 0){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-text">Nenhum produto cadastrado</div></div>';
+    return;
+  }
+
+  var grupos = {};
+  produtos.forEach(function(p){
+    var chave = (p.nome + '_' + p.marca).toUpperCase();
+    if(!grupos[chave]){
+      grupos[chave] = {
+        nome: p.nome, marca: p.marca, setor: p.setor, unidade: p.unidade,
+        quantidadeTotal: 0, melhorStatus: 'OK',
+        linhaPrincipal: p.linha, maiorQtd: 0,
+        fatoresConversao: p.fatoresConversao || {}
+      };
+    }
+    var g = grupos[chave];
+    g.quantidadeTotal += parseFloat(p.quantidade)||0;
+    if(p.quantidade > g.maiorQtd){ g.maiorQtd = p.quantidade; g.linhaPrincipal = p.linha; }
+    if(statusPrioridade(p.status, p.quantidade) < statusPrioridade(g.melhorStatus, g.quantidadeTotal)){
+      g.melhorStatus = p.status;
+    }
+  });
+
+  var arr = Object.keys(grupos).map(function(k){ return grupos[k]; });
+  arr.sort(function(a,b){
+    var pa = statusPrioridade(a.melhorStatus, a.quantidadeTotal);
+    var pb = statusPrioridade(b.melhorStatus, b.quantidadeTotal);
+    if(pa !== pb) return pa - pb;
+    return a.nome.localeCompare(b.nome,'pt-BR');
+  });
+
+  var html = '';
+  arr.forEach(function(g){
+    var qtdCls = g.quantidadeTotal <= 0 ? 'zero' : (g.quantidadeTotal <= 5 ? 'low' : 'ok');
+    html += '<div class="rapida-card" onclick="adicionarAoCarrinho('+g.linhaPrincipal+')">'+
+      '<div class="saida-icon">⚡</div>'+
+      '<div class="saida-info">'+
+        '<div class="saida-nome">'+escapeHtml(g.nome)+'</div>'+
+        '<div class="saida-meta">'+escapeHtml(g.marca||'—')+' • '+escapeHtml(g.setor)+'</div>'+
+      '</div>'+
+      '<div class="saida-qtd '+qtdCls+'">'+g.quantidadeTotal+' '+escapeHtml(g.unidade)+'</div>'+
+      '<button class="saida-btn">+ Saída</button>'+
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+var filtrarSaidaRapida = debounce(function(){
+  if(!dadosEstoque) return;
+  var termoEl = document.getElementById('rapidaSearch');
+  var termo = termoEl ? termoEl.value.toLowerCase().trim() : '';
+  var btnCadastro = document.getElementById('btnCadastroRapidoBox');
+
+  if(!termo){
+    if(btnCadastro) btnCadastro.style.display = 'none';
+    renderSaidaRapidaList(dadosEstoque.produtos);
+    return;
+  }
+  var filtrados = dadosEstoque.produtos.filter(function(p){
+    return p.nome.toLowerCase().indexOf(termo) > -1 ||
+           (p.marca && p.marca.toLowerCase().indexOf(termo) > -1) ||
+           p.setor.toLowerCase().indexOf(termo) > -1 ||
+           (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
+  });
+
+  if(filtrados.length === 0){
+    var el = document.getElementById('rapidaList');
+    if(el){
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nada encontrado para "'+escapeHtml(termo)+'"</div></div>';
+    }
+    if(btnCadastro){
+      btnCadastro.style.display = 'block';
+      var btn = document.getElementById('btnCadastroRapidoAcao');
+      if(btn){
+        btn.onclick = function(){ abrirModalCadastroRapido(termo); };
+        btn.textContent = '➕ Cadastrar "'+termo.toUpperCase()+'" e dar saída';
+      }
+    }
+  } else {
+    if(btnCadastro) btnCadastro.style.display = 'none';
+    renderSaidaRapidaList(filtrados);
+  }
+}, 200);
+
+function abrirModalCadastroRapido(nomeSugerido){
+  var modal = document.getElementById('cadRapidoModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'cadRapidoModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  var setoresOpts = ['MERCEARIA','AÇOUGUE','LATICÍNIOS','CONGELADOS','HORTIFRUTI','BEBIDAS','LIMPEZA','HIGIENE','UTILIDADES','OUTROS']
+    .map(function(s){ return '<option value="'+s+'">'+s+'</option>'; }).join('');
+  var unidadesOpts = UNIDADES_DISPONIVEIS
+    .map(function(u){ return '<option value="'+u+'"'+(u==='UN'?' selected':'')+'>'+u+'</option>'; }).join('');
+
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharCadRapido()"></div>'+
+    '<div class="mm-card">'+
+      '<div class="mm-header"><div class="mm-title">⚡ Cadastro Rápido</div>'+
+      '<div class="mm-sub">Produto será criado com qtd 0 e ficará pendente de auditoria</div></div>'+
+      '<div class="mm-body">'+
+        '<label class="mm-label">Nome do Produto</label>'+
+        '<input type="text" id="cadRapNome" class="mm-input-qtd" style="font-size:1rem; text-align:left;" value="'+escapeHtml((nomeSugerido||'').toUpperCase())+'">'+
+        '<label class="mm-label">Setor</label>'+
+        '<select id="cadRapSetor" class="form-field" style="margin-bottom:14px;"><option value="">Selecione…</option>'+setoresOpts+'</select>'+
+        '<label class="mm-label">Unidade Base</label>'+
+        '<select id="cadRapUnidade" class="form-field" style="margin-bottom:14px;">'+unidadesOpts+'</select>'+
+        '<label class="mm-label">Quantidade da Saída</label>'+
+        '<input type="number" inputmode="decimal" id="cadRapQtd" class="mm-input-qtd" value="1" min="0.01" step="0.01" readonly onclick="this.removeAttribute(\'readonly\'); this.select();">'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharCadRapido()">Cancelar</button>'+
+        '<button class="mm-btn mm-confirm" id="btnCadRapConfirmar" onclick="confirmarCadastroRapido()">Cadastrar e dar Saída</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+function fecharCadRapido(){
+  var modal = document.getElementById('cadRapidoModal');
+  if(modal) modal.classList.remove('show');
+}
+function confirmarCadastroRapido(){
+  var nome = document.getElementById('cadRapNome').value.trim();
+  var setor = document.getElementById('cadRapSetor').value;
+  var unidade = document.getElementById('cadRapUnidade').value;
+  var qtdStr = document.getElementById('cadRapQtd').value;
+  var qtd = parseFloat(qtdStr);
+
+  if(!nome){ toast('Informe o nome do produto'); return; }
+  if(!setor){ toast('Selecione o setor'); return; }
+  if(!unidade){ toast('Selecione a unidade'); return; }
+  if(!qtd || qtd <= 0){ toast('Quantidade inválida'); return; }
+
+  var btn = document.getElementById('btnCadRapConfirmar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Cadastrando…'; }
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      acao: 'cadastroRapido',
+      colaborador: sessao.nome, nome: sessao.nome,
+      produto: nome, setor: setor, unidade: unidade
+    }),
+    redirect: 'follow'
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.status === 'ok' && d.produto){
+      if(!dadosEstoque.produtos) dadosEstoque.produtos = [];
+      dadosEstoque.produtos.unshift(d.produto);
+      try { localStorage.setItem(SYNC_CACHE_KEY, JSON.stringify(dadosEstoque)); } catch(e){}
+      var item = {
+        linha: d.produto.linha, nome: d.produto.nome,
+        quantidade: qtd, unidadeDigitada: unidade, fator: 1,
+        quantidadeBase: qtd, max: 0,
+        unidade: unidade, unidadeBase: unidade, overStock: true
+      };
+      carrinhoSaida.push(item);
+      persistirCarrinho();
+      adicionarAuditoriaPendente(d.produto.linha, d.produto.nome, qtd, 0);
+      fecharCadRapido();
+      var rs = document.getElementById('rapidaSearch');
+      if(rs) rs.value = '';
+      var btnBox = document.getElementById('btnCadastroRapidoBox');
+      if(btnBox) btnBox.style.display = 'none';
+      renderSaidaRapidaList(dadosEstoque.produtos);
+      renderCarrinho();
+      switchTab('saida');
+      showSuccess('⚡', 'Produto Cadastrado!', nome + ' já está no carrinho.');
+      syncDados(true);
+    } else {
+      toast(d.msg || 'Erro no cadastro');
+    }
+  })
+  .catch(function(){ toast('Sem conexão. Tente novamente.'); })
+  .finally(function(){
+    if(btn){ btn.disabled = false; btn.textContent = 'Cadastrar e dar Saída'; }
+  });
+}
+
+function exportarSaidaRapidaCSV(){
+  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Sem dados pra exportar'); return; }
+  var termo = (document.getElementById('rapidaSearch')||{value:''}).value.toLowerCase().trim();
+  var produtos = dadosEstoque.produtos;
+  if(termo){
+    produtos = produtos.filter(function(p){
+      return p.nome.toLowerCase().indexOf(termo) > -1 ||
+             (p.marca && p.marca.toLowerCase().indexOf(termo) > -1) ||
+             p.setor.toLowerCase().indexOf(termo) > -1 ||
+             (p.codigoBarras && p.codigoBarras.indexOf(termo) > -1);
+    });
+  }
+  if(produtos.length === 0){ toast('Nenhum produto pra exportar'); return; }
+
+  var grupos = {};
+  produtos.forEach(function(p){
+    var chave = (p.nome+'_'+p.marca).toUpperCase();
+    if(!grupos[chave]){
+      grupos[chave] = { nome:p.nome, marca:p.marca, setor:p.setor, unidade:p.unidade, qtd:0, status:p.status||'OK', validade:p.validade||'', lote:p.lote||'' };
+    }
+    grupos[chave].qtd += parseFloat(p.quantidade)||0;
+  });
+  var lista = Object.keys(grupos).map(function(k){ return grupos[k]; });
+  lista.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
+
+  var linhas = ['Produto;Marca;Setor;Quantidade;Unidade;Status;Validade;Lote'];
+  lista.forEach(function(g){
+    var row = [
+      '"'+(g.nome||'').replace(/"/g,'""')+'"',
+      '"'+(g.marca||'').replace(/"/g,'""')+'"',
+      '"'+(g.setor||'').replace(/"/g,'""')+'"',
+      g.qtd,
+      '"'+(g.unidade||'')+'"',
+      '"'+(g.status||'OK')+'"',
+      '"'+(g.validade||'')+'"',
+      '"'+(g.lote||'').replace(/"/g,'""')+'"'
+    ].join(';');
+    linhas.push(row);
+  });
+  var csv = '\uFEFF' + linhas.join('\r\n');
+
+  var hoje = new Date();
+  var dataArq = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+  var nome = 'estoque_saida_rapida_'+dataArq+'.csv';
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  toast('✅ '+lista.length+' produtos exportados');
+}
+
+function imprimirSaidaRapida(){
+  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Sem dados'); return; }
+  toggleRelatorio();
+}
+
+// ══════════════════════════════════════════════════════════════
+// OCR VIA GEMINI + IMPORTAR LISTA
+// ══════════════════════════════════════════════════════════════
+var ocrModoAtual = 'entrega';
+
+function abrirCameraOCR(modo){
+  ocrModoAtual = modo || 'entrega';
+  var modal = document.getElementById('ocrModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'ocrModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  var titulo = ocrModoAtual === 'falta' ? '📸 Foto da Lista de Faltas' : '📸 Foto da Lista';
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharCameraOCR()"></div>'+
+    '<div class="mm-card" style="max-width:520px;">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">'+titulo+'</div>'+
+        '<div class="mm-sub">Tire foto nítida da lista (papel, requisição, etc)</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<input type="file" id="ocrFileInput" accept="image/*" capture="environment" style="display:none;" onchange="processarFotoOCR(event)">'+
+        '<button class="cam-btn" onclick="document.getElementById(\'ocrFileInput\').click()" style="width:100%; background:var(--blue); color:#fff; font-weight:700; padding:18px; font-size:1rem;">📷 Tirar Foto / Escolher Imagem</button>'+
+        '<div id="ocrPreview" style="margin-top:14px;"></div>'+
+        '<div id="ocrStatus" style="margin-top:14px; text-align:center; color:var(--text-secondary); font-size:0.85rem;"></div>'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharCameraOCR()">Fechar</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+function fecharCameraOCR(){
+  var modal = document.getElementById('ocrModal');
+  if(modal) modal.classList.remove('show');
+}
+
+function processarFotoOCR(event){
+  var file = event.target.files[0];
+  if(!file){ return; }
+  if(!GEMINI_API_KEY || GEMINI_API_KEY === 'COLE_SUA_CHAVE_AQUI'){
+    toast('⚠️ Chave Gemini não configurada no app.js');
+    return;
+  }
+  var preview = document.getElementById('ocrPreview');
+  var status = document.getElementById('ocrStatus');
+  status.innerHTML = '<div class="ptr-spinner" style="margin:0 auto 8px;"></div>📤 Enviando foto pro Gemini...';
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var base64 = e.target.result.split(',')[1];
+    var mimeType = file.type || 'image/jpeg';
+    preview.innerHTML = '<img src="'+e.target.result+'" style="max-width:100%; max-height:200px; border-radius:8px; border:1px solid var(--border);">';
+    enviarParaGemini(base64, mimeType);
+  };
+  reader.readAsDataURL(file);
+}
+
+function enviarParaGemini(base64, mimeType){
+  var status = document.getElementById('ocrStatus');
+  var prompt = 'Esta imagem contém uma lista de produtos de estoque (requisição/pedido). '+
+    'Extraia CADA item da lista e devolva APENAS no formato exato abaixo, um item por linha, sem numeração nem comentários:\n'+
+    'NOME_DO_PRODUTO QUANTIDADE UNIDADE\n\n'+
+    'Regras importantes:\n'+
+    '- Se a unidade não aparecer, use UN\n'+
+    '- Use apenas estas unidades: UN, KG, L, CX, PCT, FARDO, RL, FD, GL\n'+
+    '- Nome em MAIÚSCULAS\n'+
+    '- Quantidade como número (ex: 5 ou 2.5)\n'+
+    '- Ignore cabeçalhos, datas, assinaturas e itens riscados\n'+
+    '- Se não conseguir ler algum item, pule\n\n'+
+    'Exemplo de saída:\n'+
+    'ARROZ 5 KG\nFEIJAO 10 PCT\nOLEO 2 L';
+
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/'+GEMINI_MODEL+':generateContent?key='+GEMINI_API_KEY;
+  var body = {
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inline_data: { mime_type: mimeType, data: base64 } }
+      ]
+    }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+  };
+
+  status.innerHTML = '<div class="ptr-spinner" style="margin:0 auto 8px;"></div>🤖 Gemini está lendo a foto...';
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.error){
+      status.innerHTML = '<span style="color:var(--red);">❌ '+escapeHtml(data.error.message||'Erro Gemini')+'</span>';
+      return;
+    }
+    var texto = '';
+    try { texto = data.candidates[0].content.parts[0].text; }
+    catch(e){
+      status.innerHTML = '<span style="color:var(--red);">❌ Resposta inválida do Gemini</span>';
+      return;
+    }
+    texto = texto.replace(/```[a-z]*\n?/gi,'').replace(/```/g,'').trim();
+    status.innerHTML = '<span style="color:var(--green);">✅ '+texto.split('\n').length+' itens detectados!</span>';
+
+    setTimeout(function(){
+      fecharCameraOCR();
+      if(ocrModoAtual === 'falta'){
+        // Não tem mais "abrirImportarFaltas" no carrinho; mas ainda pode ser usado se chamado de outro lugar
+        // Por compatibilidade, joga texto direto em itensFalta
+        importarTextoComoFaltas(texto);
+      } else {
+        abrirImportarLista();
+        setTimeout(function(){
+          var ta = document.getElementById('importListaTxt');
+          if(ta){ ta.value = texto; salvarRascunhoLista(); }
+        }, 200);
+      }
+    }, 800);
+  })
+  .catch(function(err){
+    status.innerHTML = '<span style="color:var(--red);">❌ Erro de conexão: '+escapeHtml(err.message||'')+'</span>';
+  });
+}
+
+function importarTextoComoFaltas(txt){
+  var linhas = (txt||'').split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+  if(linhas.length === 0){ toast('Lista vazia'); return; }
+  var adicionados = 0;
+  linhas.forEach(function(linha){
+    var qtd = 1; var nome = linha; var unidade = 'UN';
+    var m = linha.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÀ-ú]{1,5})?$/);
+    var m2 = linha.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+    if(m){
+      nome = m[1].trim();
+      qtd = parseFloat(m[2].replace(',','.'));
+      if(m[3]) unidade = m[3].toUpperCase();
+    } else if(m2){
+      qtd = parseFloat(m2[1].replace(',','.'));
+      nome = m2[2].trim();
+    }
+    if(!nome || !qtd || qtd <= 0) return;
+    itensFalta.push({
+      id: Date.now()+Math.floor(Math.random()*10000)+adicionados,
+      nome: nome.toUpperCase(),
+      quantidade: qtd, unidade: unidade, observacao: ''
+    });
+    adicionados++;
+  });
+  persistirFaltas();
+  renderCarrinho();
+  showSuccess('❌', 'Faltas Importadas!', adicionados+' iten'+(adicionados>1?'s':'')+' marcado'+(adicionados>1?'s':'')+' como falta');
+}
+
+// ══════════════════════════════════════════════════════════════
+// IMPORTAR LISTA DE SAÍDA
+// ══════════════════════════════════════════════════════════════
+function abrirImportarLista(){
+  var modal = document.getElementById('importListaModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'importListaModal';
+    modal.className = 'mini-modal';
+    document.body.appendChild(modal);
+  }
+  var rascunho = '';
+  try { rascunho = localStorage.getItem(IMPORT_LISTA_KEY) || ''; } catch(e){}
+
+  modal.innerHTML =
+    '<div class="mm-backdrop" onclick="fecharImportarLista()"></div>'+
+    '<div class="mm-card" style="max-width:520px;">'+
+      '<div class="mm-header">'+
+        '<div class="mm-title">📋 Importar Lista de Saída</div>'+
+        '<div class="mm-sub">Cole a lista (1 produto por linha)</div>'+
+      '</div>'+
+      '<div class="mm-body">'+
+        '<label class="mm-label">Formato aceito:</label>'+
+        '<div style="background:rgba(118,118,128,.15); padding:10px; border-radius:8px; font-family:monospace; font-size:0.75rem; margin-bottom:14px; line-height:1.6; color:var(--text-secondary);">'+
+          'ARROZ 5<br>FEIJÃO 10<br>ÓLEO 2 L<br>5 SABÃO<br><span style="color:var(--text-tertiary);">(qtd antes ou depois do nome)</span>'+
+        '</div>'+
+        '<label class="mm-label">Cole sua lista aqui:</label>'+
+        '<textarea id="importListaTxt" class="form-field" rows="10" style="font-family:monospace; font-size:0.85rem; min-height:200px; resize:vertical;" placeholder="ARROZ 5&#10;FEIJÃO 10&#10;ÓLEO 2&#10;..." oninput="salvarRascunhoLista()">'+escapeHtml(rascunho)+'</textarea>'+
+        (rascunho ? '<div style="font-size:0.7rem; color:var(--green); margin-top:4px;">💾 Rascunho restaurado automaticamente · <a href="#" onclick="event.preventDefault(); limparRascunhoLista();" style="color:var(--red);">limpar</a></div>' : '')+
+        '<div id="importPreview" style="margin-top:12px;"></div>'+
+      '</div>'+
+      '<div class="mm-actions">'+
+        '<button class="mm-btn mm-cancel" onclick="fecharImportarLista()">Fechar</button>'+
+        '<button class="mm-btn mm-confirm" onclick="processarListaImportada()" style="background:var(--orange);">🔍 Analisar Lista</button>'+
+      '</div>'+
+    '</div>';
+  modal.classList.add('show');
+}
+
+function salvarRascunhoLista(){
+  var ta = document.getElementById('importListaTxt');
+  if(!ta) return;
+  try { localStorage.setItem(IMPORT_LISTA_KEY, ta.value); } catch(e){}
+}
+function limparRascunhoLista(){
+  try { localStorage.removeItem(IMPORT_LISTA_KEY); } catch(e){}
+  var ta = document.getElementById('importListaTxt');
+  if(ta) ta.value = '';
+  toast('Rascunho limpo');
+  abrirImportarLista();
+}
+function fecharImportarLista(){
+  var modal = document.getElementById('importListaModal');
+  if(modal) modal.classList.remove('show');
+}
+
+function processarListaImportada(){
+  var txt = document.getElementById('importListaTxt').value.trim();
+  if(!txt){ toast('Cole a lista primeiro'); return; }
+  if(!dadosEstoque || !dadosEstoque.produtos){ toast('Aguarde o carregamento dos produtos'); return; }
+
+  salvarRascunhoLista();
+
+  var linhas = txt.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+  if(linhas.length === 0){ toast('Lista vazia'); return; }
+
+  var encontrados = []; var naoEncontrados = []; var ambiguos = [];
+
+  linhas.forEach(function(linha){
+    var qtd = 1; var nome = linha; var unidade = '';
+    var m1 = linha.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*([A-Za-zÀ-ú]{1,5})?$/);
+    var m2 = linha.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
+    if(m1){
+      nome = m1[1].trim();
+      qtd = parseFloat(m1[2].replace(',','.'));
+      unidade = (m1[3]||'').toUpperCase();
+    } else if(m2){
+      qtd = parseFloat(m2[1].replace(',','.'));
+      nome = m2[2].trim();
+    }
+
+    var nomeBusca = nome.toLowerCase();
+    var matches = dadosEstoque.produtos.filter(function(p){
+      return p.nome.toLowerCase().indexOf(nomeBusca) > -1 ||
+             nomeBusca.indexOf(p.nome.toLowerCase()) > -1;
+    });
+
+    if(matches.length === 0){
+      naoEncontrados.push({ original: linha, nome: nome.toUpperCase(), qtd: qtd, unidade: unidade || 'UN' });
+    } else if(matches.length === 1){
+      encontrados.push({ original: linha, produto: matches[0], qtd: qtd, unidade: unidade });
+    } else {
+      matches.sort(function(a,b){ return b.quantidade - a.quantidade; });
+      ambiguos.push({ original: linha, produto: matches[0], qtd: qtd, unidade: unidade, alternativas: matches.length });
+    }
+  });
+
+  var previewEl = document.getElementById('importPreview');
+  var html = '<div style="border-top:.5px solid var(--border); padding-top:14px;">';
+  if(encontrados.length > 0){
+    html += '<div style="color:var(--green); font-weight:700; font-size:0.85rem; margin-bottom:8px;">✅ Encontrados ('+encontrados.length+')</div>';
+    encontrados.forEach(function(e){
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• '+escapeHtml(e.produto.nome)+' — <b style="color:var(--blue);">'+e.qtd+' '+(e.unidade||e.produto.unidade)+'</b></div>';
+    });
+  }
+  if(ambiguos.length > 0){
+    html += '<div style="color:var(--yellow); font-weight:700; font-size:0.85rem; margin:10px 0 8px;">⚠️ Múltiplos matches ('+ambiguos.length+') — usaremos o de maior estoque</div>';
+    ambiguos.forEach(function(a){
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• "'+escapeHtml(a.original)+'" → '+escapeHtml(a.produto.nome)+' ('+a.alternativas+' opções)</div>';
+    });
+  }
+  if(naoEncontrados.length > 0){
+    html += '<div style="color:var(--orange); font-weight:700; font-size:0.85rem; margin:10px 0 8px;">📝 Sem cadastro ('+naoEncontrados.length+') — vão pro carrinho como pendentes de auditoria</div>';
+    naoEncontrados.forEach(function(n){
+      html += '<div style="font-size:0.75rem; padding:4px 0; color:var(--text-secondary);">• '+escapeHtml(n.nome)+' — <b style="color:var(--orange);">'+n.qtd+' '+n.unidade+'</b> ⚠️</div>';
+    });
+  }
+  var totalAdicionar = encontrados.length + ambiguos.length + naoEncontrados.length;
+  html += '<button class="submit-btn" onclick="confirmarImportacaoLista()" style="background:var(--green); margin-top:14px;" '+(totalAdicionar === 0 ? 'disabled' : '')+'>'+
+    '➕ Adicionar '+totalAdicionar+' itens ao carrinho</button>';
+  html += '</div>';
+  previewEl.innerHTML = html;
+
+  window._importListaCache = {
+    encontrados: encontrados, ambiguos: ambiguos, naoEncontrados: naoEncontrados
+  };
+}
+
+function confirmarImportacaoLista(){
+  var cache = window._importListaCache;
+  if(!cache){ toast('Analise a lista primeiro'); return; }
+
+  var todosOk = cache.encontrados.concat(cache.ambiguos);
+  var pendentes = cache.naoEncontrados || [];
+  var adicionados = 0;
+  var overStockCount = 0;
+  var pendentesCount = 0;
+
+  todosOk.forEach(function(item){
+    var p = item.produto;
+    var qtd = item.qtd;
+    var unidade = item.unidade || p.unidade;
+    var fator = 1;
+    if(unidade !== p.unidade){
+      var fatoresKnown = p.fatoresConversao || {};
+      if(fatoresKnown[unidade]) fator = fatoresKnown[unidade];
+      else unidade = p.unidade;
+    }
+    var qtdBase = qtd * fator;
+    var overStock = qtdBase > p.quantidade;
+    if(overStock) overStockCount++;
+
+    var existente = carrinhoSaida.find(function(x){ return x.linha === p.linha; });
+    if(existente){
+      existente.quantidade = qtd;
+      existente.unidadeDigitada = unidade;
+      existente.fator = fator;
+      existente.quantidadeBase = qtdBase;
+      existente.overStock = overStock;
+    } else {
+      carrinhoSaida.push({
+        linha: p.linha, nome: p.nome,
+        quantidade: qtd, unidadeDigitada: unidade, fator: fator,
+        quantidadeBase: qtdBase, max: p.quantidade,
+        unidade: p.unidade, unidadeBase: p.unidade,
+        overStock: overStock
+      });
+    }
+    if(overStock){ adicionarAuditoriaPendente(p.linha, p.nome, qtdBase, p.quantidade); }
+    adicionados++;
+  });
+
+  pendentes.forEach(function(n){
+    var linhaPlaceholder = -(Date.now() + Math.floor(Math.random()*10000));
+    carrinhoSaida.push({
+      linha: linhaPlaceholder, nome: n.nome,
+      quantidade: n.qtd, unidadeDigitada: n.unidade, fator: 1,
+      quantidadeBase: n.qtd, max: 0,
+      unidade: n.unidade, unidadeBase: n.unidade,
+      overStock: true, pendenteCadastro: true
+    });
+    adicionarAuditoriaPendente(linhaPlaceholder, n.nome + ' (NÃO CADASTRADO)', n.qtd, 0);
+    adicionados++; pendentesCount++;
+  });
+
+  persistirCarrinho();
+  try { localStorage.removeItem(IMPORT_LISTA_KEY); } catch(e){}
+  fecharImportarLista();
+  renderCarrinho();
+  switchTab('saida');
+
+  var msg = adicionados+' item'+(adicionados>1?'s':'')+' no carrinho';
+  if(overStockCount > 0) msg += ' • '+overStockCount+' c/ divergência';
+  if(pendentesCount > 0) msg += ' • '+pendentesCount+' p/ cadastrar';
+  showSuccess('📋', 'Lista Importada!', msg);
+  window._importListaCache = null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// HISTÓRICO POR MOVIMENTO
+// ══════════════════════════════════════════════════════════════
+var TIPOS_HISTORICO = [
+  { id:'REQUISIÇÃO',     icon:'📦', label:'Requisição',       cor:'var(--blue)' },
+  { id:'AVARIA',         icon:'⚠️', label:'Avaria / Vencido', cor:'var(--red)' },
+  { id:'CONSUMO',        icon:'🏢', label:'Consumo Interno',  cor:'var(--green)' },
+  { id:'AJUSTE AUDITORIA', icon:'🕵️', label:'Ajuste Auditoria', cor:'var(--purple)' },
+  { id:'SAÍDA LOTE',     icon:'📤', label:'Saída em Lote',     cor:'var(--orange)' }
+];
+
+function renderHistoricoCards(){
+  var el = document.getElementById('historicoContent');
+  if(!el) return;
+  var movs = (dadosEstoque && dadosEstoque.movimentacoes) ? dadosEstoque.movimentacoes : {};
+  var html = '<div class="section-label">Histórico por Tipo de Movimento</div><div class="hist-cards-grid">';
+  TIPOS_HISTORICO.forEach(function(t){
+    var qtd = (movs[t.id] || []).length;
+    html += '<div class="hist-card" onclick="abrirHistoricoTipo(\''+t.id+'\')">'+
+      '<div class="hist-card-icon">'+t.icon+'</div>'+
+      '<div class="hist-card-label">'+t.label+'</div>'+
+      '<div class="hist-card-count" style="color:'+t.cor+'">'+qtd+'</div>'+
+    '</div>';
+  });
+  html += '</div><p style="color:var(--text-tertiary); font-size:0.75rem; text-align:center; margin-top:16px;">Toque em um card para ver os movimentos</p>';
+  el.innerHTML = html;
+}
+
+function abrirHistoricoTipo(tipoId){
+  var movs = (dadosEstoque && dadosEstoque.movimentacoes) ? dadosEstoque.movimentacoes : {};
+  var lista = movs[tipoId] || [];
+  var tipoMeta = TIPOS_HISTORICO.find(function(t){ return t.id === tipoId; }) || { icon:'📋', label:tipoId };
+
+  var el = document.getElementById('historicoContent');
+  var html = '<button class="cam-btn" onclick="renderHistoricoCards()" style="margin-bottom:14px; background:rgba(118,118,128,.15);">← Voltar aos tipos</button>';
+  html += '<div class="section-label">'+tipoMeta.icon+' '+tipoMeta.label+' ('+lista.length+')</div>';
+
+  if(lista.length === 0){
+    html += '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Nenhum movimento registrado</div></div>';
+    el.innerHTML = html; return;
+  }
+
+  lista.forEach(function(m, idx){
+    var unidade = m.unidadeDigitada || '';
+    var qtdMostrar = m.qtdDigitada || m.qtdSaida;
+    var detBase = '';
+    if(unidade && unidade !== '' && parseFloat(m.fator||1) !== 1){
+      detBase = ' (= '+m.qtdSaida+' base)';
+    }
+    html += '<div class="hist-mov-card">'+
+      '<div class="hmov-header">'+
+        '<div class="hmov-prod">'+escapeHtml(m.produto)+'</div>'+
+        '<button class="hmov-print-btn" onclick="imprimirMovimento(\''+tipoId+'\','+idx+')">🖨️</button>'+
+      '</div>'+
+      '<div class="hmov-meta">'+escapeHtml(m.marca||'—')+' • '+escapeHtml(m.setor||'—')+'</div>'+
+      '<div class="hmov-row"><span>Qtd:</span><b>'+qtdMostrar+' '+escapeHtml(unidade||'')+detBase+'</b></div>'+
+      '<div class="hmov-row"><span>Anterior → Novo:</span><b>'+m.qtdAnterior+' → '+m.qtdNova+'</b></div>'+
+      '<div class="hmov-row"><span>Por:</span><b>'+escapeHtml(m.colaborador)+'</b></div>'+
+      '<div class="hmov-row"><span>Data:</span><b>'+escapeHtml(m.dataHora)+'</b></div>'+
+      (m.motivo ? '<div class="hmov-motivo">'+escapeHtml(m.motivo)+'</div>' : '')+
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function imprimirMovimento(tipoId, idx){
+  var movs = (dadosEstoque && dadosEstoque.movimentacoes) ? dadosEstoque.movimentacoes : {};
+  var lista = movs[tipoId] || [];
+  var m = lista[idx];
+  if(!m){ toast('Movimento não encontrado'); return; }
+  var tipoMeta = TIPOS_HISTORICO.find(function(t){ return t.id === tipoId; }) || { icon:'📋', label:tipoId };
+
+  var w = window.open('', '_blank', 'width=800,height=600');
+  if(!w){ toast('Pop-up bloqueado.'); return; }
+
+  var unidade = m.unidadeDigitada || '';
+  var qtdMostrar = m.qtdDigitada || m.qtdSaida;
+  var detBase = '';
+  if(unidade && unidade !== '' && parseFloat(m.fator||1) !== 1){
+    detBase = ' (equivale a '+m.qtdSaida+' na unidade base)';
+  }
+
+  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comprovante</title>'+
+    '<style>body{font-family:-apple-system,Arial,sans-serif; color:#000; background:#fff; padding:24px; max-width:700px; margin:0 auto;}h1{font-size:18px; margin:0 0 6px 0;}h2{font-size:14px; margin:0 0 24px 0; color:#666;}.box{border:1px solid #000; padding:16px; margin-bottom:16px;}.row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #ddd;}.lbl{color:#666; font-size:13px;}.val{font-weight:700; font-size:13px; text-align:right;}@media print{body{padding:0;}}</style></head><body>'+
+    '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:20px;"><h1>ESTOQUE DIGITAL — CRV/LAS</h1><h2>Comprovante de '+tipoMeta.label+'</h2></div>'+
+    '<div class="box">'+
+      '<div class="row"><span class="lbl">Produto</span><span class="val">'+escapeHtml(m.produto)+'</span></div>'+
+      '<div class="row"><span class="lbl">Marca</span><span class="val">'+escapeHtml(m.marca||'—')+'</span></div>'+
+      '<div class="row"><span class="lbl">Setor</span><span class="val">'+escapeHtml(m.setor||'—')+'</span></div>'+
+      '<div class="row"><span class="lbl">Quantidade</span><span class="val">'+qtdMostrar+' '+escapeHtml(unidade)+detBase+'</span></div>'+
+      '<div class="row"><span class="lbl">Anterior</span><span class="val">'+m.qtdAnterior+'</span></div>'+
+      '<div class="row"><span class="lbl">Novo</span><span class="val">'+m.qtdNova+'</span></div>'+
+      (m.motivo ? '<div class="row"><span class="lbl">Motivo</span><span class="val">'+escapeHtml(m.motivo)+'</span></div>' : '')+
+      '<div class="row"><span class="lbl">Operador</span><span class="val">'+escapeHtml(m.colaborador)+'</span></div>'+
+      '<div class="row"><span class="lbl">Data</span><span class="val">'+escapeHtml(m.dataHora)+'</span></div>'+
+    '</div>'+
+    '<div style="margin-top:50px; display:flex; justify-content:space-between;"><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:6px; font-size:12px;">Operador</div><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:6px; font-size:12px;">Conferente</div></div>'+
+    '</body></html>';
+
+  w.document.open(); w.document.write(doc); w.document.close();
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PULL-TO-REFRESH
+// ══════════════════════════════════════════════════════════════
+function inicializarPullToRefresh(){
+  var indicator = document.getElementById('ptrIndicator');
+  if(!indicator){
+    indicator = document.createElement('div');
+    indicator.id = 'ptrIndicator';
+    indicator.className = 'ptr-indicator';
+    indicator.innerHTML = '<div class="ptr-spinner"></div>';
+    document.body.appendChild(indicator);
+  }
+
+  var threshold = 80; var maxPull = 140;
+
+  document.addEventListener('touchstart', function(e){
+    if(window.scrollY > 0) return;
+    if(!estaNaTabPainel()) return;
+    if(!sessao) return;
+    ptrState.startY = e.touches[0].clientY;
+    ptrState.pulling = true; ptrState.ready = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e){
+    if(!ptrState.pulling) return;
+    if(window.scrollY > 0){ ptrState.pulling = false; resetPtrIndicator(); return; }
+    var diff = e.touches[0].clientY - ptrState.startY;
+    if(diff <= 0) return;
+    var pull = Math.min(diff, maxPull);
+    ptrState.currentY = pull;
+    indicator.style.transform = 'translateX(-50%) translateY('+pull+'px)';
+    indicator.style.opacity = Math.min(pull / threshold, 1);
+    if(pull >= threshold){ ptrState.ready = true; indicator.classList.add('ptr-ready'); }
+    else { ptrState.ready = false; indicator.classList.remove('ptr-ready'); }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(){
+    if(!ptrState.pulling) return;
+    if(ptrState.ready){
+      indicator.classList.add('ptr-loading');
+      indicator.style.transform = 'translateX(-50%) translateY(60px)';
+      toast('🔄 Sincronizando…');
+      syncDados(true);
+      syncConfigRemota();
+      setTimeout(function(){ resetPtrIndicator(); }, 1200);
+    } else { resetPtrIndicator(); }
+    ptrState.pulling = false; ptrState.ready = false; ptrState.currentY = 0;
+  });
+}
+function resetPtrIndicator(){
+  var ind = document.getElementById('ptrIndicator');
+  if(!ind) return;
+  ind.style.transform = 'translateX(-50%) translateY(-60px)';
+  ind.style.opacity = '0';
+  ind.classList.remove('ptr-ready','ptr-loading');
+}
+function estaNaTabPainel(){
+  var t = document.getElementById('contentPainel');
+  return t && t.classList.contains('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// RELATÓRIO
+// ══════════════════════════════════════════════════════════════
+function toggleRelatorio() {
+  if (relatorioAtivo) { fecharRelatorio(); return; }
+  toast('Carregando dados...');
+  if (dadosEstoque && dadosEstoque.produtos && dadosEstoque.produtos.length > 0) gerarRelatorio();
+  else mostrarRelatorioVazio();
+}
+function mostrarRelatorioVazio() {
+  relatorioAtivo = true;
+  var sw = document.getElementById('switchRelatorio'); if (sw) sw.classList.add('on');
+  var overlay = document.getElementById('relatorioOverlay');
+  if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
+  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">Fechar</button></div><div class="rel-container"><div class="rel-header"><div class="rel-logo">ESTOQUE DIGITAL</div><div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div></div><div class="rel-empty"><div class="rel-empty-icon">📋</div><div class="rel-empty-title">Sem dados na planilha</div></div></div>';
+  overlay.classList.add('show');
+}
+function gerarRelatorio() {
+  relatorioAtivo = true;
+  var sw = document.getElementById('switchRelatorio'); if (sw) sw.classList.add('on');
+  var produtos = dadosEstoque.produtos;
+  var hoje = new Date();
+  var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
+  var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
+  var vencidos = []; var criticos = []; var atencao = []; var monitorar = []; var zerados = []; var todos = []; var porSetor = {};
+  produtos.forEach(function (p) {
+    todos.push(p);
+    var setor = p.setor || 'SEM SETOR';
+    if (!porSetor[setor]) porSetor[setor] = [];
+    porSetor[setor].push(p);
+    if (p.quantidade <= 0) zerados.push(p);
+    if (p.status === 'VENCIDO') vencidos.push(p);
+    else if (p.status === 'CRÍTICO') criticos.push(p);
+    else if (p.status === 'ATENÇÃO') atencao.push(p);
+    else if (p.status === 'MONITORAR') monitorar.push(p);
+  });
+  function sortByDias(a, b) {
+    var da = (a.diasVencer !== '' && a.diasVencer !== null && a.diasVencer !== undefined) ? a.diasVencer : 9999;
+    var db = (b.diasVencer !== '' && b.diasVencer !== null && b.diasVencer !== undefined) ? b.diasVencer : 9999;
+    return da - db;
+  }
+  vencidos.sort(sortByDias); criticos.sort(sortByDias); atencao.sort(sortByDias); monitorar.sort(sortByDias);
+
+  var html = '<div class="rel-container"><div class="rel-header"><div class="rel-logo">ESTOQUE DIGITAL</div><div class="rel-empresa">Grupo Carlos Vaz — CRV/LAS</div><div class="rel-data">Relatório gerado em ' + dataStr + ' às ' + horaStr + ' por ' + (sessao ? sessao.nome : '—') + '</div></div><div class="rel-summary">';
+  html += buildRelSummaryCard('Total de Produtos', todos.length, 'blue') + buildRelSummaryCard('Estoque Zerado', zerados.length, 'red') + buildRelSummaryCard('Vencidos', vencidos.length, 'red') + buildRelSummaryCard('Críticos (≤7d)', criticos.length, 'orange') + buildRelSummaryCard('Atenção (≤30d)', atencao.length, 'yellow') + buildRelSummaryCard('Monitorar (≤60d)', monitorar.length, 'blue') + '</div>';
+  if (vencidos.length > 0) html += buildRelSection('❌ Produtos Vencidos', vencidos, 'vencido');
+  if (criticos.length > 0) html += buildRelSection('🔴 Produtos Críticos — Vencem em até 7 dias', criticos, 'critico');
+  if (atencao.length > 0) html += buildRelSection('🟡 Produtos em Atenção — Vencem em até 30 dias', atencao, 'atencao');
+  if (monitorar.length > 0) html += buildRelSection('🔵 Produtos para Monitorar — Vencem em até 60 dias', monitorar, 'monitorar');
+  if (zerados.length > 0) {
+    html += '<div class="rel-section"><div class="rel-section-title zero">🚫 Estoque Zerado</div>';
+    var zeradosPorSetor = {};
+    zerados.forEach(function (p) { var s = p.setor || 'SEM SETOR'; if (!zeradosPorSetor[s]) zeradosPorSetor[s] = []; zeradosPorSetor[s].push(p); });
+    Object.keys(zeradosPorSetor).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + '</div>' + buildRelTable(zeradosPorSetor[setor], false) + '</div>'; });
+    html += '</div>';
+  }
+  html += '<div class="rel-section"><div class="rel-section-title all">📦 Inventário Completo por Setor</div>';
+  Object.keys(porSetor).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + ' <span class="rel-setor-count">(' + porSetor[setor].length + ' produtos)</span></div>' + buildRelTable(porSetor[setor], true) + '</div>'; });
+  html += '</div><div class="rel-footer">Estoque Digital — Grupo Carlos Vaz · ' + dataStr + '</div></div>';
+
+  var overlay = document.getElementById('relatorioOverlay');
+  if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
+  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()">🖨️ Imprimir</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
+  overlay.classList.add('show'); overlay.scrollTop = 0;
+}
+function buildRelSection(title, items, cls) {
+  var html = '<div class="rel-section"><div class="rel-section-title ' + cls + '">' + title + '</div>';
+  var grouped = {};
+  items.forEach(function (p) { var s = p.setor || 'SEM SETOR'; if (!grouped[s]) grouped[s] = []; grouped[s].push(p); });
+  Object.keys(grouped).sort().forEach(function (setor) { html += '<div class="rel-setor-group"><div class="rel-setor-name">' + escapeHtml(setor) + '</div>' + buildRelTable(grouped[setor], true) + '</div>'; });
+  return html + '</div>';
+}
+function buildRelTable(items, showDias) {
+  var html = '<table class="rel-table"><thead><tr><th>Produto</th><th>Marca</th><th>Qtd</th><th>Un</th><th>Validade</th>' + (showDias ? '<th>Dias</th>' : '') + '<th>Status</th><th>Lote</th></tr></thead><tbody>';
+  items.forEach(function (p) {
+    var statusCls = getStatusClass(p.status, p.quantidade);
+    var diasTxt = '—';
+    if (p.diasVencer !== '' && p.diasVencer !== null && p.diasVencer !== undefined) diasTxt = p.diasVencer + 'd';
+    html += '<tr><td class="rel-td-nome">' + escapeHtml(p.nome) + '</td><td>' + escapeHtml(p.marca) + '</td><td class="rel-td-num ' + (p.quantidade <= 0 ? 'zero' : '') + '">' + p.quantidade + '</td><td>' + escapeHtml(p.unidade) + '</td><td>' + escapeHtml(p.validade || '—') + '</td>' + (showDias ? '<td class="rel-td-num rel-dias-' + statusCls + '">' + diasTxt + '</td>' : '') + '<td><span class="rel-status-badge ' + statusCls + '">' + (p.quantidade <= 0 ? 'SEM ESTOQUE' : (p.status || 'OK')) + '</span></td><td>' + escapeHtml(p.lote || '—') + '</td></tr>';
+  });
+  return html + '</tbody></table>';
+}
+function buildRelSummaryCard(label, value, color) {
+  return '<div class="rel-stat-card ' + color + '"><div class="rel-stat-val">' + value + '</div><div class="rel-stat-lbl">' + label + '</div></div>';
+}
+function imprimirRelatorio() { window.print(); }
+function fecharRelatorio() {
+  relatorioAtivo = false;
+  var sw = document.getElementById('switchRelatorio'); if (sw) sw.classList.remove('on');
+  var overlay = document.getElementById('relatorioOverlay'); if (overlay) overlay.classList.remove('show');
+}
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+function showSuccess(icon, msg, detail) {
+  document.getElementById('successIcon').textContent = icon;
+  document.getElementById('successMsg').textContent = msg;
+  document.getElementById('successDetail').textContent = detail || '';
+  var ov = document.getElementById('successOverlay');
+  ov.classList.add('show');
+  setTimeout(function () { ov.classList.remove('show'); }, 3000);
+}
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function () { t.classList.remove('show'); }, 3500);
+}
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// COMPROVANTES (com observação no PDF)
+// ══════════════════════════════════════════════════════════════
+function salvarComprovanteServidor(dados){
+  var payload = Object.assign({ acao: 'salvarComprovante' }, dados);
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload), redirect: 'follow'
+  }).catch(function(){});
+}
+
+var listaComprovantes = [];
+var COMPROVANTES_CACHE_KEY = 'cv_estoque_comprovantes_cache';
+
+function carregarComprovantes(){
+  var el = document.getElementById('comprovantesList');
+  if(!el) return;
+
+  try {
+    var cached = localStorage.getItem(COMPROVANTES_CACHE_KEY);
+    if(cached){
+      listaComprovantes = JSON.parse(cached);
+      renderComprovantes();
+    } else {
+      var sk = '';
+      for(var i=0; i<3; i++){
+        sk += '<div class="hist-mov-card" style="opacity:0.5;"><div style="height:18px; background:rgba(118,118,128,.2); border-radius:4px; margin-bottom:8px; width:60%;"></div><div style="height:14px; background:rgba(118,118,128,.15); border-radius:4px; margin-bottom:6px; width:40%;"></div></div>';
+      }
+      el.innerHTML = '<div class="section-label">📜 Carregando comprovantes...</div>' + sk;
+    }
+  } catch(e){}
+
+  fetch(API_URL + '?comprovantes=1')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      listaComprovantes = d.comprovantes || [];
+      try { localStorage.setItem(COMPROVANTES_CACHE_KEY, JSON.stringify(listaComprovantes)); } catch(e){}
+      renderComprovantes();
+    })
+    .catch(function(){
+      if(listaComprovantes.length === 0){
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Erro ao carregar.</div></div>';
+      }
+    });
+}
+
+function renderComprovantes(){
+  var el = document.getElementById('comprovantesList');
+  if(!el) return;
+  if(listaComprovantes.length === 0){
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-text">Nenhum comprovante nos últimos 30 dias</div></div>';
+    return;
+  }
+  var html = '<div class="section-label">📜 Últimos 30 dias ('+listaComprovantes.length+' comprovantes)</div>';
+  listaComprovantes.forEach(function(c, idx){
+    var totalLabel = c.totalEntregues + ' entregue' + (c.totalEntregues !== 1 ? 's' : '');
+    if(c.totalFaltas > 0) totalLabel += ' • ' + c.totalFaltas + ' em falta';
+    html += '<div class="hist-mov-card" style="cursor:pointer;" onclick="reimprimirComprovante('+idx+')">'+
+      '<div class="hmov-header">'+
+        '<div class="hmov-prod">📦 '+escapeHtml(c.destino || '—')+'</div>'+
+        '<button class="hmov-print-btn" onclick="event.stopPropagation(); reimprimirComprovante('+idx+')">🖨️</button>'+
+      '</div>'+
+      '<div class="hmov-meta">'+escapeHtml(c.setor || '—')+' • '+escapeHtml(c.operador)+'</div>'+
+      '<div class="hmov-row"><span>Data:</span><b>'+escapeHtml(c.dataHora)+'</b></div>'+
+      '<div class="hmov-row"><span>Itens:</span><b>'+totalLabel+'</b></div>'+
+      (c.observacao ? '<div class="hmov-motivo" style="background:rgba(10,132,255,0.08); color:var(--blue);">📝 '+escapeHtml(c.observacao)+'</div>' : '')+
+      (c.totalFaltas > 0 ? '<div class="hmov-motivo" style="background:rgba(255,69,58,0.1); color:var(--red);">⚠️ '+c.totalFaltas+' iten'+(c.totalFaltas>1?'s':'')+' em falta</div>' : '')+
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function reimprimirComprovante(idx){
+  var c = listaComprovantes[idx];
+  if(!c){ toast('Comprovante não encontrado'); return; }
+  gerarComprovantePedido(c.itens || [], c.destino, c.setor, c.faltas || [], c.observacao || '');
+}
+
+function gerarComprovantePedido(itens, destino, setor, faltas, observacao) {
+  faltas = faltas || [];
+  observacao = observacao || '';
+  var hoje = new Date();
+  var dataStr = String(hoje.getDate()).padStart(2, '0') + '/' + String(hoje.getMonth() + 1).padStart(2, '0') + '/' + hoje.getFullYear();
+  var horaStr = String(hoje.getHours()).padStart(2, '0') + ':' + String(hoje.getMinutes()).padStart(2, '0');
+
+  var html = '<div class="rel-container" style="background:#fff; color:#000; font-family:\'Inter\',sans-serif; padding:20px; max-width:800px; margin:0 auto;">';
+  html += '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:20px;">';
+  html += '<h1 style="margin:0; font-size:22px; font-weight:800; text-transform:uppercase;">Comprovante de Entrega</h1>';
+  html += '<p style="margin:5px 0 0 0; font-size:14px; font-weight:600; color:#444;">Grupo Carlos Vaz — CRV/LAS</p></div>';
+  html += '<div style="background:#f9f9f9; border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:20px; font-size:14px; line-height:1.6;">';
+  html += '<strong>Data de Separação:</strong> ' + dataStr + ' às ' + horaStr + '<br>';
+  html += '<strong>Separador Responsável:</strong> ' + (sessao ? sessao.nome : '—') + '<br>';
+  if(setor){
+    html += '<strong>Setor Solicitante:</strong> <span style="font-size:16px; font-weight:700; text-transform:uppercase; color:#0a84ff;">' + escapeHtml(setor) + '</span><br>';
+  }
+  html += '<strong>Destino / Obra:</strong> <span style="font-size:16px; font-weight:700; text-transform:uppercase;">' + escapeHtml(destino) + '</span><br>';
+  html += '</div>';
+
+  // 🚀 v15.8 — Bloco de Observação no comprovante
+  if(observacao){
+    html += '<div style="background:#fff8dc; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:6px; margin-bottom:20px; font-size:14px;">';
+    html += '<div style="font-weight:700; text-transform:uppercase; color:#92400e; font-size:11px; letter-spacing:0.5px; margin-bottom:4px;">📝 Observação</div>';
+    html += '<div style="color:#000; white-space:pre-wrap;">' + escapeHtml(observacao) + '</div>';
+    html += '</div>';
+  }
+
+  if(itens.length > 0){
+    html += '<h2 style="font-size:15px; margin:20px 0 8px; padding:8px 12px; background:#e8f5e9; border-left:4px solid #2e7d32; color:#2e7d32; text-transform:uppercase;">✅ Itens Entregues ('+itens.length+')</h2>';
+    html += '<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">';
+    html += '<thead><tr style="background:#eee; border-bottom:2px solid #000;"><th style="padding:12px 8px; text-align:left;" colspan="2">Quantidade</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:center;">Conferido</th></tr></thead><tbody>';
+    itens.forEach(function (item) {
+      var unMostrar = item.unidadeDigitada || item.unidade || item.unidadeBase || '';
+      var qtdTexto = item.quantidade + ' ' + escapeHtml(unMostrar);
+      var temConversao = item.unidadeDigitada && item.unidadeBase && item.unidadeDigitada !== item.unidadeBase && item.fator && item.fator !== 1 && !item.pendenteCadastro;
+      if(temConversao){
+        qtdTexto = item.quantidade + ' ' + escapeHtml(item.unidadeDigitada) + ' <span style="font-size:12px; color:#666; font-weight:500;">(= ' + item.quantidadeBase + ' ' + escapeHtml(item.unidadeBase) + ')</span>';
+      }
+      html += '<tr style="border-bottom:1px solid #ddd;"><td style="padding:12px 8px; font-weight:800; font-size:16px;" colspan="2">' + qtdTexto + '</td><td style="padding:12px 8px; font-weight:500;">' + escapeHtml(item.nome) + '</td><td style="padding:12px 8px; text-align:center;"><div style="width:20px; height:20px; border:1px solid #999; border-radius:4px; margin:0 auto;"></div></td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  if(faltas.length > 0){
+    html += '<h2 style="font-size:15px; margin:20px 0 8px; padding:8px 12px; background:#ffebee; border-left:4px solid #c62828; color:#c62828; text-transform:uppercase;">❌ Itens em Falta ('+faltas.length+')</h2>';
+    html += '<table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">';
+    html += '<thead><tr style="background:#ffebee; border-bottom:2px solid #c62828;"><th style="padding:12px 8px; text-align:left;">Qtd</th><th style="padding:12px 8px; text-align:left;">Un</th><th style="padding:12px 8px; text-align:left;">Produto</th><th style="padding:12px 8px; text-align:left;">Observação</th></tr></thead><tbody>';
+    faltas.forEach(function(f){
+      html += '<tr style="border-bottom:1px solid #f5c6c6;"><td style="padding:12px 8px; font-weight:800; font-size:16px; color:#c62828;">'+f.quantidade+'</td><td style="padding:12px 8px; color:#555;">'+escapeHtml(f.unidade)+'</td><td style="padding:12px 8px; font-weight:500;">'+escapeHtml(f.nome)+'</td><td style="padding:12px 8px; font-style:italic; color:#666;">'+escapeHtml(f.observacao||'—')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  html += '<div style="margin-top:40px; font-size:13px; color:#333;">';
+  html += '<p style="text-align:center; margin-bottom:50px; font-style:italic;">Declaro ter recebido os itens acima descritos em perfeitas condições.</p>';
+  html += '<div style="display:flex; justify-content:space-between; margin-bottom:50px;"><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Assinatura do Recebedor</div><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Documento (CPF / RG)</div></div>';
+  html += '<div style="display:flex; justify-content:space-between;"><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Data de Recebimento</div><div style="width:45%; text-align:center; border-top:1px solid #000; padding-top:5px;">Motorista/Entregador</div></div></div></div>';
+
+  var overlay = document.getElementById('relatorioOverlay');
+  if (!overlay) { overlay = document.createElement('div'); overlay.id = 'relatorioOverlay'; document.body.appendChild(overlay); }
+  overlay.innerHTML = '<div class="rel-toolbar no-print"><button class="rel-toolbar-btn" onclick="imprimirRelatorio()" style="background:var(--blue); color:#fff; font-weight:700; font-size:1rem; padding:12px 20px;">🖨️ Imprimir Comprovante</button><button class="rel-toolbar-btn close" onclick="fecharRelatorio()">✕ Fechar</button></div>' + html;
+  overlay.classList.add('show'); overlay.scrollTop = 0;
+}
+
+// ══════════════════════════════════════════════════════════════
+// SWIPE HORIZONTAL = VOLTAR
+// ══════════════════════════════════════════════════════════════
+var navegacaoHistorico = ['painel'];
+var swipeState = { startX: 0, startY: 0, startT: 0, tracking: false };
+
+var _switchTabOriginal = switchTab;
+switchTab = function(tab){
+  var ultimoIdx = navegacaoHistorico.length - 1;
+  if(navegacaoHistorico[ultimoIdx] !== tab){
+    navegacaoHistorico.push(tab);
+    if(navegacaoHistorico.length > 10) navegacaoHistorico.shift();
+  }
+  _switchTabOriginal(tab);
+};
+
+function voltarAbaAnterior(){
+  var modaisAbertos = document.querySelectorAll('.modal-overlay.show, .mini-modal.show, #relatorioOverlay.show');
+  if(modaisAbertos.length > 0){
+    modaisAbertos.forEach(function(m){ m.classList.remove('show'); });
+    return;
+  }
+  if(navegacaoHistorico.length > 1){
+    navegacaoHistorico.pop();
+    var anterior = navegacaoHistorico[navegacaoHistorico.length - 1];
+    _switchTabOriginal(anterior);
+  } else { _switchTabOriginal('painel'); }
+}
+
+document.addEventListener('touchstart', function(e){
+  var alvo = e.target;
+  if(alvo.closest('input, textarea, select, video, canvas, .mini-modal, .modal-overlay, #readerEntrada, #readerSaida')) return;
+  if(e.touches.length !== 1) return;
+  swipeState.startX = e.touches[0].clientX;
+  swipeState.startY = e.touches[0].clientY;
+  swipeState.startT = Date.now();
+  swipeState.tracking = true;
+}, { passive: true });
+
+document.addEventListener('touchend', function(e){
+  if(!swipeState.tracking) return;
+  swipeState.tracking = false;
+  var t = e.changedTouches[0];
+  var dx = t.clientX - swipeState.startX;
+  var dy = t.clientY - swipeState.startY;
+  var dt = Date.now() - swipeState.startT;
+  if(dt > 500) return;
+  if(Math.abs(dx) < 80) return;
+  if(Math.abs(dy) > Math.abs(dx) * 0.7) return;
+  if(dx > 0 && swipeState.startX < 60){
+    voltarAbaAnterior();
+    if(navigator.vibrate) navigator.vibrate(30);
+  } else if(dx > 120){
+    voltarAbaAnterior();
+    if(navigator.vibrate) navigator.vibrate(30);
+  }
+}, { passive: true });
+
+window.addEventListener('popstate', function(){
+  voltarAbaAnterior();
+  history.pushState(null, '', location.href);
+});
+if(window.history && window.history.pushState){
+  history.pushState(null, '', location.href);
+}
+
+// ══════════════ BALÕES DE AJUDA ══════════════
+document.addEventListener('click', function (e) {
+  if (!e.target.classList.contains('help-icon')) {
+    document.querySelectorAll('.tooltip-balloon').forEach(function(b){ b.remove(); });
+    document.querySelectorAll('.help-icon.active').forEach(function(i){ i.classList.remove('active'); });
+    return;
+  }
+  var icon = e.target;
+  if (icon.classList.contains('active')) {
+    icon.classList.remove('active');
+    document.querySelectorAll('.tooltip-balloon').forEach(function(b){ b.remove(); });
+    return;
+  }
+  document.querySelectorAll('.tooltip-balloon').forEach(function(b){ b.remove(); });
+  document.querySelectorAll('.help-icon.active').forEach(function(i){ i.classList.remove('active'); });
+  icon.classList.add('active');
+  var texto = icon.getAttribute('data-tooltip');
+  var balloon = document.createElement('div');
+  balloon.className = 'tooltip-balloon';
+  balloon.textContent = texto;
+  document.body.appendChild(balloon);
+  var rect = icon.getBoundingClientRect();
+  balloon.style.left = (rect.left + (rect.width / 2)) + 'px';
+  balloon.style.top = (rect.top - balloon.offsetHeight - 10) + 'px';
+});
+
+// ══════════════ SERVICE WORKER ══════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(function (reg) { console.log('[Estoque] Service Worker registrado:', reg.scope); })
+      .catch(function (err) { console.warn('[Estoque] Service Worker falhou:', err); });
+  });
+}
+
+// ══════════════ Splash bootstrap ══════════════
+document.body.classList.add('pronto');
+setTimeout(function(){
+  var tampa = document.getElementById('tampa-carregamento');
+  if (tampa) {
+    tampa.style.opacity = '0';
+    setTimeout(function(){ tampa.remove(); }, 400);
+  }
+}, 150);
