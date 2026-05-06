@@ -36,7 +36,12 @@ var CREDS_OFFLINE = {
   "GESTOR": "704bd714166d21ac85ed8a26fbde6b9be2d94981934305be4a7915a8bbd0c157"
 };
 
-var UNIDADES_DISPONIVEIS = ['UN','KG','L','CX','PCT','FARDO','RL','FD','GL'];
+var UNIDADES_DISPONIVEIS = ['UN','KG','G','L','ML','CX','PCT','FARDO','RL','FD','GL'];
+// 🚀 v15.9 — Unidades agrupadoras (precisam de fator de conversão na entrada)
+var UNIDADES_AGRUPADORAS = ['CX','PCT','FARDO','FD','GL','RL'];
+// Unidades que podem ser "conteúdo" de uma agrupadora
+var UNIDADES_INTERNAS = ['UN','KG','G','L','ML','PCT'];
+
 var STATUS_ORDEM = { 'VENCIDO':0, 'CRÍTICO':1, 'ATENÇÃO':2, 'MONITORAR':3, 'OK':4, 'ZERADO':5 };
 
 // 🚀 v15.8 — Padrões de fallback (caso o servidor ainda não tenha CONFIG_DESTINOS)
@@ -2181,41 +2186,175 @@ function confirmarImportacaoNFe(){
   });
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// 🚀 v15.9 — BLOCO DE CONVERSÃO NA ENTRADA
+// ══════════════════════════════════════════════════════════════
+function onEntradaUnidadeChange(){
+  var unidade = (document.getElementById('entUnidade').value||'').toUpperCase();
+  var box = document.getElementById('entFatorBox');
+  var label = document.getElementById('entFatorUnLabel');
+  var obrigMark = document.getElementById('entFatorObrig');
+  var fatorQtd = document.getElementById('entFatorQtd');
+  var fatorUnSel = document.getElementById('entFatorUnidadeInterna');
+
+  if(!box) return;
+
+  if(unidade === 'UN'){
+    // UN puro: esconde o bloco
+    box.style.display = 'none';
+    if(fatorQtd) fatorQtd.value = '';
+    return;
+  }
+
+  // Mostra o bloco
+  box.style.display = 'block';
+  if(label) label.textContent = unidade;
+
+  if(UNIDADES_AGRUPADORAS.indexOf(unidade) >= 0){
+    // Obrigatório
+    if(obrigMark) obrigMark.style.display = '';
+    // Sugere unidade interna conforme contexto
+    if(fatorUnSel && !fatorQtd.value){
+      // Se for CX/FARDO/PCT default UN; se for FD/GL pode ser L
+      if(unidade === 'GL' || unidade === 'FD'){
+        fatorUnSel.value = 'L';
+      } else {
+        fatorUnSel.value = 'UN';
+      }
+    }
+  } else {
+    // Opcional (KG, G, L, ML)
+    if(obrigMark) obrigMark.style.display = 'none';
+    // Pra KG/L sugere a mesma unidade no fator (peso fixo por embalagem)
+    if(fatorUnSel && !fatorQtd.value){
+      if(unidade === 'KG') fatorUnSel.value = 'KG';
+      else if(unidade === 'G') fatorUnSel.value = 'G';
+      else if(unidade === 'L') fatorUnSel.value = 'L';
+      else if(unidade === 'ML') fatorUnSel.value = 'ML';
+    }
+  }
+
+  atualizarPreviewEntrada();
+}
+
+function atualizarPreviewEntrada(){
+  var qtd = parseFloat(document.getElementById('entQtd').value) || 0;
+  var unidade = (document.getElementById('entUnidade').value||'').toUpperCase();
+  var fatorEl = document.getElementById('entFatorQtd');
+  var fatorUnEl = document.getElementById('entFatorUnidadeInterna');
+  var preview = document.getElementById('entFatorPreview');
+  var previewTxt = document.getElementById('entFatorPreviewTxt');
+
+  if(!preview) return;
+  if(unidade === 'UN' || qtd <= 0){
+    preview.style.display = 'none';
+    return;
+  }
+  var fator = fatorEl ? (parseFloat(fatorEl.value) || 0) : 0;
+  if(fator <= 0){
+    preview.style.display = 'none';
+    return;
+  }
+  var unidadeInterna = fatorUnEl ? (fatorUnEl.value||'UN').toUpperCase() : 'UN';
+  var totalEstoque = qtd * fator;
+  // Arredondamento bonito
+  var totalFmt = (Math.round(totalEstoque * 1000) / 1000).toString();
+
+  preview.style.display = 'block';
+  previewTxt.textContent = '✅ Total no estoque: ' + totalFmt + ' ' + unidadeInterna +
+    ' (' + qtd + ' ' + unidade + ' × ' + fator + ' ' + unidadeInterna + ')';
+}
+
+function validarFatorEntrada(){
+  var unidade = (document.getElementById('entUnidade').value||'').toUpperCase();
+  if(unidade === 'UN'){
+    return { ok:true, fator:1, unidadeInterna:'UN', usaFator:false };
+  }
+
+  var fatorEl = document.getElementById('entFatorQtd');
+  var fatorUnEl = document.getElementById('entFatorUnidadeInterna');
+  var fator = fatorEl ? (parseFloat(fatorEl.value) || 0) : 0;
+  var unidadeInterna = fatorUnEl ? (fatorUnEl.value||'UN').toUpperCase() : 'UN';
+
+  if(UNIDADES_AGRUPADORAS.indexOf(unidade) >= 0){
+    // Obrigatório
+    if(!fator || fator <= 0){
+      return { ok:false, msg:'Informe quantas '+unidadeInterna+' tem em cada '+unidade+'.' };
+    }
+    return { ok:true, fator:fator, unidadeInterna:unidadeInterna, usaFator:true };
+  }
+
+  // KG, G, L, ML — opcional
+  if(fator > 0){
+    return { ok:true, fator:fator, unidadeInterna:unidadeInterna, usaFator:true };
+  }
+  return { ok:true, fator:1, unidadeInterna:unidade, usaFator:false };
+}
+
+
 // ══════════════════════════════════════════════════════════════
 // ENTRADA NORMAL (manual)
 // ══════════════════════════════════════════════════════════════
 function enviarEntrada() {
   var produto = document.getElementById('entProduto').value.trim();
-  var qtd = document.getElementById('entQtd').value;
+  var qtdStr = document.getElementById('entQtd').value;
   if (!produto) { toast('Informe o nome do produto'); return; }
-  if (!qtd || parseFloat(qtd) <= 0) { toast('Informe a quantidade'); return; }
+  if (!qtdStr || parseFloat(qtdStr) <= 0) { toast('Informe a quantidade'); return; }
+
+  // 🚀 v15.9 — Valida fator de conversão
+  var v = validarFatorEntrada();
+  if(!v.ok){ toast('⚠️ ' + v.msg); document.getElementById('entFatorQtd').focus(); return; }
+
   var btn = document.getElementById('btnEntrada');
   btn.disabled = true; btn.textContent = 'Registando...';
+
+  var qtdDigitada = parseFloat(qtdStr);
+  var unidadeDigitada = document.getElementById('entUnidade').value;
+
+  // Se usou fator, converte: estoque sempre na unidade interna
+  var qtdEstoque = v.usaFator ? (qtdDigitada * v.fator) : qtdDigitada;
+  var unidadeEstoque = v.usaFator ? v.unidadeInterna : unidadeDigitada;
 
   var payload = {
     acao: 'entrada', colaborador: sessao.nome, nome: sessao.nome,
     setor: document.getElementById('entSetor').value, produto: produto,
     marca: document.getElementById('entMarca').value.trim(),
-    quantidade: qtd, unidade: document.getElementById('entUnidade').value,
+    quantidade: qtdEstoque,         // já convertida (ex: 60 UN)
+    unidade: unidadeEstoque,         // unidade base do estoque (ex: UN)
     validade: document.getElementById('entValidade').value,
     lote: document.getElementById('entLote').value.trim(),
     observacoes: document.getElementById('entObs').value.trim(),
     codigoBarras: document.getElementById('entCodigoBarras').value.trim(),
-    foto: fotoData
+    foto: fotoData,
+    // 🚀 v15.9 — Metadados pro GS salvar fator e registrar como veio
+    qtdDigitada: qtdDigitada,
+    unidadeDigitada: unidadeDigitada,
+    fatorConversao: v.usaFator ? v.fator : 1,
+    usaFator: v.usaFator
   };
 
   if (!dadosEstoque.produtos) dadosEstoque.produtos = [];
+  var fatoresIniciais = {};
+  if(v.usaFator){
+    // Salva o fator no formato {AGRUPADORA: qtd_interna}
+    fatoresIniciais[unidadeDigitada] = v.fator;
+  }
   dadosEstoque.produtos.unshift({
     linha: Date.now(),
     nome: produto, marca: payload.marca, setor: payload.setor,
-    quantidade: parseFloat(qtd), unidade: payload.unidade,
+    quantidade: qtdEstoque, unidade: unidadeEstoque,
     status: 'OK', validade: payload.validade, lote: payload.lote, codigoBarras: payload.codigoBarras,
-    fatoresConversao: {}
+    fatoresConversao: fatoresIniciais
   });
   dadosEstoque = limparDuplicatasZeradas(dadosEstoque);
   renderPainel(dadosEstoque);
 
-  showSuccess('📦', 'Produto Registrado!', produto + ' adicionado.');
+  var detalhe = produto + ' adicionado.';
+  if(v.usaFator){
+    detalhe = qtdDigitada + ' ' + unidadeDigitada + ' = ' + qtdEstoque + ' ' + unidadeEstoque + ' no estoque.';
+  }
+  showSuccess('📦', 'Produto Registrado!', detalhe);
   limparFormEntrada();
   switchTab('painel');
 
@@ -2225,6 +2364,7 @@ function enviarEntrada() {
     .catch(function (err) { toast('Sincronizando no servidor...'); })
     .finally(function () { btn.disabled = false; btn.textContent = 'Salvar Entrada'; });
 }
+
 
 function limparFormEntrada() {
   document.getElementById('entCodigoBarras').value = '';
@@ -2236,10 +2376,18 @@ function limparFormEntrada() {
   document.getElementById('entValidade').value = '';
   document.getElementById('entLote').value = '';
   document.getElementById('entObs').value = '';
+  // 🚀 v15.9 — Limpa bloco de conversão
+  var fatorQtd = document.getElementById('entFatorQtd');
+  if(fatorQtd) fatorQtd.value = '';
+  var fatorBox = document.getElementById('entFatorBox');
+  if(fatorBox) fatorBox.style.display = 'none';
+  var fatorPrev = document.getElementById('entFatorPreview');
+  if(fatorPrev) fatorPrev.style.display = 'none';
   resetarFoto();
   document.getElementById('areaCameraEntrada').style.display = 'none';
   document.getElementById('btnRevelarCamera').style.display = 'flex';
 }
+
 function mostrarCameraEntrada() {
   document.getElementById('btnRevelarCamera').style.display = 'none';
   document.getElementById('areaCameraEntrada').style.display = 'block';
