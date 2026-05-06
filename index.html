@@ -209,22 +209,24 @@
       <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
     </select>
 
-    <!-- 🔴 v15.1 — Destino + Setor (só aparecem em SAÍDA DE PEDIDO) -->
-    <div id="destinoBox" style="display:none;">
-      <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
-      <select id="loteSetorSelect" class="form-field" style="margin-bottom:10px;">
-        <option value="">Selecione o setor…</option>
-      </select>
-      <input type="text" id="loteSetorNovo" class="form-field" placeholder="Nome do novo setor…" style="display:none; margin-bottom:10px;">
-      <button type="button" id="btnConfirmarNovoSetor" onclick="confirmarNovoSetor()" class="cam-btn" style="display:none; margin-bottom:14px; padding:10px; background:var(--green) !important;">✅ Adicionar setor</button>
+   <!-- 🚀 v15.8 — Setor (só em SAÍDA DE PEDIDO) e Destino (em PEDIDO + CONSUMO) -->
+<div id="setorBox" style="display:none;">
+  <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
+  <select id="loteSetorSelect" class="form-field" style="margin-bottom:10px;">
+    <option value="">Selecione o setor…</option>
+  </select>
+  <input type="text" id="loteSetorNovo" class="form-field" placeholder="Nome do novo setor…" style="display:none; margin-bottom:10px;">
+  <button type="button" id="btnConfirmarNovoSetor" onclick="confirmarNovoSetor()" class="cam-btn" style="display:none; margin-bottom:14px; padding:10px; background:var(--green) !important;">✅ Adicionar setor</button>
+</div>
 
-      <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
-      <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
-        <option value="">Selecione o destino…</option>
-      </select>
-      <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:8px;">
-    </div>
-  </div>
+<div id="destinoBox" style="display:none;">
+  <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
+  <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
+    <option value="">Selecione o destino…</option>
+  </select>
+  <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="margin-bottom:8px;">
+</div>
+
 
   <!-- 2. CARRINHO NO MEIO -->
   <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
