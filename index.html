@@ -1,37 +1,377 @@
-        <div class="ios-card-row"><div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div><input type="number" id="entQtd" class="form-field" placeholder="0" oninput="atualizarPreviewEntrada()"></div>
-        <div class="ios-card-row"><div class="ios-row-title">Unidade</div><select id="entUnidade" class="form-field" onchange="onEntradaUnidadeChange()">
-          <option value="UN">UN</option><option value="KG">KG</option><option value="G">G</option><option value="L">L</option><option value="ML">ML</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="FARDO">FARDO</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
-        </select></div>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Estoque Digital — CRV/LAS</title>
+  <meta name="description" content="Controle de Estoque — Grupo Carlos Vaz">
 
-        <!-- 🚀 v15.9 — Bloco de conversão (aparece só pra unidades agrupadoras) -->
-        <div id="entFatorBox" style="display:none; padding:14px 16px; border-bottom:.5px solid var(--border); background:rgba(10,132,255,0.04);">
-          <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-            <span style="font-size:1.1rem;">📦</span>
-            <span style="font-weight:700; color:var(--text-primary); font-size:0.85rem;">Cada <span id="entFatorUnLabel" style="color:var(--blue);">CX</span> contém: <span id="entFatorObrig" style="color:var(--red);">*</span></span>
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="manifest.json">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Estoque">
+  <link rel="apple-touch-icon" href="estoque-icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="estoque-icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="estoque-icon-512.png">
+
+  <link rel="icon" type="image/png" sizes="192x192" href="estoque-icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="estoque-icon-512.png">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body style="background-color: #0a0a0a; margin: 0; padding: 0;">
+  <div id="tampa-carregamento" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #0a0a0a; z-index: 99999; transition: opacity 0.4s ease;"></div>
+
+<div class="bg-scene">
+  <div class="orb"></div><div class="orb"></div><div class="orb"></div>
+</div>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="brand-icon">📦</div>
+    <h2>Estoque Digital</h2>
+    <p class="sub">CRV/LAS — Controle de Estoque</p>
+    <select id="loginUser" class="login-field">
+      <option value="">Selecione o seu nome</option>
+      <option value="LUIZ">Luiz</option>
+      <option value="LUCAS">Lucas</option>
+      <option value="TASSIO">Tassio</option>
+      <option value="AMARAL">Amaral</option>
+      <option value="ALEX">Alex</option>
+      <option value="GESTOR">Gestor</option>
+    </select>
+    
+    <div style="position:relative; margin-bottom:14px;">
+      <input type="password" id="loginPass" class="login-field" placeholder="Sua senha" autocomplete="off" style="padding-right:48px; margin-bottom:0;">
+      <button type="button" onclick="toggleSenha()" id="eyeBtn" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.2rem; color:rgba(235,235,245,.4); z-index:10; padding:10px;"><span id="eyeIcon">👁️</span></button>
+    </div>
+    
+    <div style="margin-bottom: 16px; text-align: left; display: flex; align-items: flex-start; gap: 8px; padding: 0 4px;">
+      <input type="checkbox" id="lgpdCheck" style="margin-top: 3px; width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer;">
+      <label for="lgpdCheck" style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; cursor: pointer;">
+        Declaro que li e concordo com a recolha de dados estritamente para fins laborais e de acesso ao sistema, conforme a <strong>LGPD</strong>.
+      </label>
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="fazerLogin()">Entrar</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ══════════════ LOADING ══════════════ -->
+<div id="ldScreen" class="hidden">
+  <div class="ld-spinner"></div>
+  <div class="ld-text" id="ldText">A Sincronizar...</div>
+</div>
+<div id="ldBarTop"></div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div id="mainApp" style="display:none;">
+  <div class="top-bar">
+    <div class="top-bar-row1">
+      <div class="brand">
+        <div class="brand-dot">📦</div>
+        <div class="brand-text"><h1>Estoque Digital</h1><span>CRV/LAS</span></div>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sair</button>
+    </div>
+   <div class="top-bar-row2">
+  <span class="badge badge-online" id="badgeStatus">Online</span>
+  <span class="badge badge-gestor" id="badgeGestor" style="display:none;">Gestor</span>
+</div>
+
+  </div>
+
+  <div class="container">
+    <div class="tab-nav-wrap">
+      <div class="tab-nav">
+        <button class="tab-btn" id="tabPainel" onclick="switchTab('painel')">📊 Painel</button>
+        <button class="tab-btn" id="tabEntrada" onclick="switchTab('entrada')">📥 Entrada</button>
+        <button class="tab-btn" id="tabSaida" onclick="switchTab('saida')">📤 Saída</button>
+        <button class="tab-btn" id="tabRapida" onclick="switchTab('rapida')">⚡Saída Rápida</button>
+        <button class="tab-btn" id="tabAuditoria" onclick="switchTab('auditoria')">🔍 Auditoria</button>
+        <button class="tab-btn" id="tabHistorico" onclick="switchTab('historico')">📜 Histórico</button>
+        <button class="tab-btn" id="tabComprovantes" onclick="switchTab('comprovantes')">🧾 Comprovantes</button>
+      </div>
+    </div>
+
+    <!-- ══════ TAB: PAINEL ══════ -->
+    <div class="tab-content active" id="contentPainel">
+      <div class="section-label">Resumo do Estoque</div>
+      <div class="stats-grid">
+        <div class="stat-card blue"><span class="s-icon">📦</span><div class="s-label">Total Produtos</div><div class="s-value blue" id="statTotal">0</div></div>
+        <div class="stat-card green"><span class="s-icon">✅</span><div class="s-label">Em Dia</div><div class="s-value green" id="statOk">0</div></div>
+        <div class="stat-card red"><span class="s-icon">⚠️</span><div class="s-label">Alertas</div><div class="s-value red" id="statAlertas">0</div></div>
+        <div class="stat-card purple"><span class="s-icon">🚫</span><div class="s-label">Estoque Zero</div><div class="s-value purple" id="statZero">0</div></div>
+      </div>
+
+      <div class="relatorio-switch-row">
+        <span class="relatorio-switch-label">Relatório para Impressão</span>
+        <button class="apple-switch" id="switchRelatorio" onclick="toggleRelatorio()" style="border:none; background:transparent;"><div class="apple-switch-track"><div class="apple-switch-thumb"></div></div></button>
+      </div>
+
+      <div id="alertasSection" style="display:none;">
+        <div class="section-label">Alertas Ativos</div>
+        <div id="alertasList"></div>
+      </div>
+
+      <div class="section-label">Base de Dados</div>
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="searchInput" class="form-field search-icon-input" placeholder="Buscar produto..." oninput="filtrarProdutos()">
+        </div>
+      </div>
+      
+      <div id="produtosList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
+      <p class="sync-time" id="syncTime"></p>
+    </div>
+
+    <!-- ══════ TAB: ENTRADA ══════ -->
+    <div class="tab-content" id="contentEntrada">
+      <div class="section-label">Nova Entrada de Mercadoria</div>
+
+      <!-- 🚀 v15.8 — Importar NFe via XML -->
+      <div style="margin-bottom:18px;">
+        <button class="cam-btn" onclick="abrirImportarNFe()" type="button" style="width:100%; background:linear-gradient(135deg, var(--blue), var(--indigo)); color:#fff; font-weight:700; padding:16px; font-size:0.95rem; border-radius:14px; border:none;">
+          📄 Importar Nota Fiscal (XML)
+        </button>
+        <p style="color:var(--text-tertiary); font-size:0.7rem; text-align:center; margin-top:6px;">Lê o XML do fornecedor e cadastra todos os produtos automaticamente</p>
+      </div>
+      
+      <div class="ios-card">
+        <div class="ios-card-row" style="flex-direction:column; align-items:stretch;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="ios-row-title">Código de Barras <span class="help-icon" data-tooltip="Bipe para preencher os dados automaticamente.">?</span></div>
+            <button class="cam-btn primary" onclick="iniciarScannerEntrada()" type="button" style="padding:6px 12px; font-size:.75rem; width:auto; margin:0;">📷 Bipar</button>
           </div>
-          <div style="display:flex; gap:10px; align-items:flex-end;">
-            <div style="flex:1;">
-              <label class="form-label" style="font-size:0.7rem; margin-bottom:4px;">Quantidade</label>
-              <input type="number" inputmode="decimal" id="entFatorQtd" class="form-field" placeholder="Ex: 12" min="0.01" step="0.01" oninput="atualizarPreviewEntrada()">
-            </div>
-            <div style="flex:1;">
-              <label class="form-label" style="font-size:0.7rem; margin-bottom:4px;">Unidade</label>
-              <select id="entFatorUnidadeInterna" class="form-field" onchange="atualizarPreviewEntrada()">
-                <option value="UN">UN</option>
-                <option value="KG">KG</option>
-                <option value="G">G</option>
-                <option value="L">L</option>
-                <option value="ML">ML</option>
-                <option value="PCT">PCT</option>
-              </select>
-            </div>
+          <input type="text" id="entCodigoBarras" class="form-field" placeholder="Leia o código ou digite" onblur="buscarProdutoPorCodigo(this.value)" style="margin-top:8px;">
+        </div>
+        
+        <div id="scannerEntradaArea" style="display:none; padding:16px; border-bottom:.5px solid var(--border);">
+          <div id="readerEntrada" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button type="button" class="cam-btn" onclick="toggleFlash()" style="flex: 1; background: #333;">🔦 Flash</button>
+            <button type="button" class="cam-btn" onclick="pararScannerEntrada()" style="flex: 1; background: #2c2c2e;">⏹️ Parar</button>
           </div>
-          <div id="entFatorPreview" style="margin-top:10px; padding:8px 12px; background:rgba(48,209,88,0.08); border:1px solid rgba(48,209,88,0.25); border-radius:8px; color:var(--green); font-size:0.8rem; font-weight:600; display:none;">
-            ✅ <span id="entFatorPreviewTxt">Total no estoque: 60 UN</span>
-          </div>
-          <p style="color:var(--text-tertiary); font-size:0.7rem; margin-top:8px; line-height:1.4;">
-            💡 Exemplo: <b>5 FARDO × 12 UN</b> = 60 UN no estoque. Saídas podem ser por FARDO ou UN — o sistema converte automaticamente.
-          </p>
         </div>
 
+        <div class="ios-card-row"><div class="ios-row-title">Setor</div>
+          <select id="entSetor" class="form-field">
+            <option value="">Selecione</option><option value="MERCEARIA">Mercearia</option><option value="AÇOUGUE">Açougue</option><option value="LATICÍNIOS">Laticínios</option><option value="CONGELADOS">Congelados</option><option value="HORTIFRUTI">Hortifruti</option><option value="BEBIDAS">Bebidas</option><option value="LIMPEZA">Limpeza</option><option value="HIGIENE">Higiene</option><option value="UTILIDADES">Utilidades</option><option value="OUTROS">Outros</option>
+          </select>
+        </div>
+        <div class="ios-card-row"><div class="ios-row-title">Produto <span style="color:var(--red);">*</span></div><input type="text" id="entProduto" class="form-field" placeholder="Nome do item"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Marca</div><input type="text" id="entMarca" class="form-field" placeholder="Opcional"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Quantidade <span style="color:var(--red);">*</span></div><input type="number" id="entQtd" class="form-field" placeholder="0"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Unidade</div><select id="entUnidade" class="form-field">
+          <option value="UN">UN</option><option value="KG">KG</option><option value="L">L</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="FARDO">FARDO</option><option value="RL">RL</option><option value="FD">FD</option><option value="GL">GL</option>
+        </select></div>
         <div class="ios-card-row"><div class="ios-row-title">Validade</div><input type="date" id="entValidade" class="form-field"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Lote</div><input type="text" id="entLote" class="form-field" placeholder="Ref/Lote"></div>
+        <div class="ios-card-row"><div class="ios-row-title">Observações</div><input type="text" id="entObs" class="form-field" placeholder="Opcional"></div>
+      </div>
+
+      <div class="section-label">Avaria / Identificação visual <span class="help-icon" data-tooltip="Use a câmara se o produto estiver avariado ou quiser registrar imagem do lote.">?</span></div>
+      <div class="ios-card" style="padding:16px;">
+        <button type="button" class="cam-btn" id="btnRevelarCamera" onclick="mostrarCameraEntrada()" style="width: 100%; justify-content: center; border: 1px dashed rgba(255,255,255,0.2); background:transparent;">📷 Adicionar Foto (Opcional)</button>
+        <div class="foto-area" id="areaCameraEntrada" style="display:none; margin-top:12px;">
+          <video id="fotoVideo" autoplay playsinline></video>
+          <canvas id="fotoCanvas" style="display:none;"></canvas>
+          <div class="foto-actions" style="margin-top:10px; display:flex; gap:10px; width:100%;">
+            <button type="button" class="cam-btn primary" id="btnFotoCapture" onclick="capturarFoto()" style="margin:0;">📸 Capturar</button>
+            <button type="button" class="cam-btn" id="btnFotoReset" onclick="resetarFoto()" style="display:none; margin:0;">🔄 Refazer</button>
+          </div>
+          <div class="selfie-ok" id="fotoOk" style="display:none; color:var(--green); margin-top:12px; font-weight:700;">✅ Foto Registrada</div>
+        </div>
+      </div>
+
+      <button class="submit-btn" id="btnEntrada" onclick="enviarEntrada()">Salvar Entrada</button>
+    </div>
+
+    <!-- ══════ TAB: SAÍDA ══════ -->        
+    <div class="tab-content" id="contentSaida">
+      
+      <!-- 1. CONFIGURAÇÕES DA SAÍDA (TOPO) -->
+      <div style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
+        <label class="form-label" style="margin-bottom:8px;">Tipo de Saída <span style="color:var(--red);">*</span></label>
+        <select id="loteMotivoSelect" class="form-field" style="margin-bottom:16px;">
+          <option value="SAÍDA DE PEDIDO">📦 Saída de Pedido</option>
+          <option value="CONSUMO INTERNO">🏢 Consumo Interno</option>
+          <option value="AVARIA">⚠️ Avaria / Perda</option>
+          <option value="VENCIDO">❌ Produto Vencido / Descarte</option>
+        </select>
+
+        <!-- Setor (só em SAÍDA DE PEDIDO) -->
+        <div id="setorBox" style="display:none;">
+          <label class="form-label" style="margin-bottom:8px;">Setor Solicitante <span style="color:var(--red);">*</span></label>
+          <select id="loteSetorSelect" class="form-field" style="margin-bottom:10px;">
+            <option value="">Selecione o setor…</option>
+          </select>
+          <input type="text" id="loteSetorNovo" class="form-field" placeholder="Nome do novo setor…" style="display:none; margin-bottom:10px;">
+          <button type="button" id="btnConfirmarNovoSetor" onclick="confirmarNovoSetor()" class="cam-btn" style="display:none; margin-bottom:14px; padding:10px; background:var(--green) !important;">✅ Adicionar setor</button>
+        </div>
+
+        <!-- Destino (em PEDIDO + CONSUMO) -->
+        <div id="destinoBox" style="display:none;">
+          <label class="form-label" style="margin-bottom:8px;">Destino <span style="color:var(--red);">*</span></label>
+          <select id="loteDestinoSelect" class="form-field" style="margin-bottom:10px;">
+            <option value="">Selecione o destino…</option>
+          </select>
+          <input type="text" id="loteDestinoNovo" class="form-field" placeholder="Nome do novo destino…" style="display:none; margin-bottom:10px;">
+          <button type="button" id="btnConfirmarNovoDestino" onclick="confirmarNovoDestino()" class="cam-btn" style="display:none; margin-bottom:10px; padding:10px; background:var(--green) !important;">✅ Adicionar destino</button>
+          <input type="text" id="loteMotivoObs" class="form-field" placeholder="Destino livre (opcional)" style="display:none; margin-bottom:8px;">
+        </div>
+
+        <!-- 🚀 v15.8 — Observação livre (responsável, motorista, etc) -->
+        <div id="observacaoBox" style="display:none; margin-top:6px;">
+          <label class="form-label" style="margin-bottom:8px;">Observação <span style="color:var(--text-tertiary); font-weight:400; font-size:0.75rem;">(opcional)</span></label>
+          <textarea id="loteObservacao" class="form-field" rows="2" placeholder="Ex: Responsável: João • Motorista: Pedro • Pedido nº 123…" style="resize:vertical; min-height:60px; font-family:inherit;"></textarea>
+        </div>
+      </div>
+
+      <!-- 2. CARRINHO -->
+      <div id="carrinhoArea" style="background:var(--surface-1); border:1px solid var(--border); border-radius:24px; padding:20px; margin-bottom:24px; display:none; backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);">
+        <div class="section-label" style="margin: 0 0 16px 0;">🛒 Itens Selecionados (<span id="cartCount" style="color:var(--blue);">0</span>) <span class="help-icon" data-tooltip="Toque em um item para editar. Use o ❌ para marcá-lo como falta.">?</span></div>
+        
+        <div id="cartList" style="margin-bottom: 24px;"></div>
+        
+        <div style="padding-top: 16px; border-top: .5px solid var(--border);">
+          <button class="submit-btn" id="btnConfirmarLote" onclick="confirmarSaidaLote()" style="background:var(--orange); width: 100%;">✅ Confirmar Baixa Total</button>
+        </div>
+      </div>
+
+      <!-- 3. BUSCA E SCANNER -->
+      <div class="section-label">
+        ADICIONAR ITEM AO CARRINHO 
+        <span class="help-icon" data-tooltip="Busque pelo nome, clique no produto abaixo ou use o botão Bipar.">?</span>
+      </div>
+      
+      <div class="ios-card" style="margin-bottom: 16px;">
+        <div class="ios-card-row" style="display: flex; align-items: center; padding: 12px 16px; gap: 10px;">
+          <div style="flex: 1; min-width: 0;">
+            <input type="text" id="saidaSearch" class="form-field" placeholder="Buscar ou Bipar..." oninput="filtrarSaida()" style="margin: 0;">
+          </div>
+          <button class="cam-btn primary" onclick="iniciarScannerSaida()" type="button" style="flex: 0 0 auto; width: auto; margin: 0; padding: 14px 20px;">📷 Bipar</button>
+        </div>
+      </div>
+
+      <div id="scannerSaidaArea" style="display:none; margin-bottom:16px;">
+        <div id="readerSaida" style="width:100%; border-radius:12px; overflow:hidden;"></div>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button type="button" class="cam-btn" onclick="toggleFlash()" style="flex: 1; background: #333;">🔦 Flash</button>
+          <button type="button" class="cam-btn" onclick="pararScannerSaida()" style="flex: 1; background: #2c2c2e;">⏹️ Parar</button>
+        </div>
+      </div>
+
+      <!-- 4. LISTA -->
+      <div class="section-label">
+        ESTOQUE ATUAL (CLIQUE PARA ADICIONAR)
+        <span class="help-icon" data-tooltip="Toque num produto da lista abaixo para adicioná-lo ao carrinho de saída.">?</span>
+      </div>
+      <div id="saidaList"></div>
+      
+    </div>
+          
+    <!-- ══════ TAB: SAÍDA RÁPIDA ══════ -->
+    <div class="tab-content" id="contentRapida">
+      <div class="section-label">
+        ⚡ SAÍDA RÁPIDA
+        <span class="help-icon" data-tooltip="Busque qualquer produto. Se não existir, cadastre na hora e dê saída em segundos.">?</span>
+      </div>
+
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="rapidaSearch" class="form-field search-icon-input" placeholder="Buscar produto ou cadastrar novo…" oninput="filtrarSaidaRapida()">
+        </div>
+      </div>
+
+      <div class="rapida-export-row" style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <button class="cam-btn" onclick="abrirImportarLista()" style="flex:1; min-width:140px; background:var(--orange); color:#fff; font-weight:700;">📋 Importar Lista</button>
+        <button class="cam-btn" onclick="abrirCameraOCR('entrega')" style="flex:1; min-width:140px; background:var(--purple); color:#fff; font-weight:700;">📸 Foto da Lista</button>
+        <button class="cam-btn" onclick="exportarSaidaRapidaCSV()" style="flex:1; min-width:120px; background:var(--green); color:#fff; font-weight:700;">📥 Exportar CSV</button>
+        <button class="cam-btn" onclick="imprimirSaidaRapida()" style="flex:1; min-width:120px; background:var(--blue); color:#fff; font-weight:700;">🖨️ Imprimir</button>
+      </div>
+
+      <div id="btnCadastroRapidoBox" style="display:none; margin-bottom:16px;">
+        <button class="submit-btn" id="btnCadastroRapidoAcao" style="background:var(--purple);">➕ Cadastrar e dar saída</button>
+        <p style="color:var(--text-tertiary); font-size:0.7rem; text-align:center; margin-top:8px;">O produto será criado com qtd 0 e ficará pendente de auditoria.</p>
+      </div>
+
+      <div id="rapidaList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
+    </div>
+
+    <!-- ══════ TAB: AUDITORIA ══════ -->
+    <div class="tab-content" id="contentAuditoria">
+      <div class="section-label">Conferência Cega <span class="help-icon" data-tooltip="O sistema esconde a quantidade esperada. Se der diferença, o App perguntará se quer corrigir o estoque na hora.">?</span></div>
+      <p style="color:var(--text-tertiary); font-size:0.75rem; margin-bottom:16px; padding:0 4px;">Conte os itens na prateleira e digite o valor real. O sistema ajustará eventuais quebras ou perdas.</p>
+      
+      <div class="ios-card">
+        <div class="ios-card-row">
+          <input type="text" id="auditoriaSearch" class="form-field search-icon-input" placeholder="Buscar produto para auditar..." oninput="filtrarAuditoria()">
+        </div>
+      </div>
+      
+      <div id="auditoriaList"><p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p></div>
+    </div>
+
+    <!-- ══════ TAB: HISTÓRICO ══════ -->
+    <div class="tab-content" id="contentHistorico">
+      <div id="historicoContent">
+        <p style="color:var(--text-tertiary);font-size:.85rem;text-align:center;padding:20px;">A Carregar...</p>
+      </div>
+    </div>
+
+    <!-- ══════ TAB: COMPROVANTES ══════ -->
+    <div class="tab-content" id="contentComprovantes">
+      <div id="comprovantesList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+<div class="modal-full" id="auditoriaModal" style="z-index:6500;">
+  <div class="modal-bar"><h2>🕵️ Auditar Item</h2><button class="modal-close" onclick="fecharAuditoria()">✕</button></div>
+  <div class="modal-body">
+    <div class="ios-card" style="padding:28px 22px; text-align:center;">
+      <p style="color:var(--text-secondary); font-size:.9rem;" id="auditoriaProdSetor"></p>
+      <p style="color:var(--text-primary); font-size:1.2rem; font-weight:700; margin:10px 0;" id="auditoriaProdNome"></p>
+      <input type="hidden" id="auditoriaProdLinha">
+      <div style="margin-top:24px; padding-top:20px; border-top:.5px solid var(--border);">
+        <label class="section-label" style="display:block; text-align:center; margin-bottom:12px;">Quantidade Real na Prateleira</label>
+        <input type="number" id="auditoriaQtdFisica" class="form-field" inputmode="decimal" placeholder="0" style="text-align:center; font-size:2rem; font-weight:800; color:var(--blue); padding:12px;">
+      </div>
+      <button class="submit-btn" id="btnSalvarAuditoria" onclick="enviarAuditoria()" style="background:var(--indigo); margin-top:24px;">Verificar Divergência</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-full" id="detalheModal">
+  <div class="modal-bar"><h2>📋 Detalhes</h2><button class="modal-close" onclick="fecharDetalhe()">✕</button></div>
+  <div class="modal-body" id="detalheBody"></div>
+</div>
+
+<div class="modal-full" id="editModal" style="z-index:6000;">
+  <div class="modal-bar"><h2>✏️ Editar</h2><button class="modal-close" onclick="fecharEditar()">✕</button></div>
+  <div class="modal-body" id="editBody"></div>
+</div>
+
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon" id="successIcon">✅</div>
+  <div class="success-msg" id="successMsg">Ok!</div>
+  <div class="success-detail" id="successDetail"></div>
+</div>
+<div id="relatorioOverlay" class="relatorio-overlay"></div>
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script src="tracker.js" defer></script>
+</body>
+</html>
